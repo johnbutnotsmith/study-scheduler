@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 
 from .schemas import WeeklyPlanRequest, WeeklyPlanResponse
-from backend.core.allocator.weekly_allocator import generate_weekly_plan
+from core.allocator.weekly_allocator import generate_weekly_plan
 
 router = APIRouter(prefix="/weekly", tags=["weekly"])
 

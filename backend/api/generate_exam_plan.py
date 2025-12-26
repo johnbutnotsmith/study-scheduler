@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException
 
 from .schemas import ExamPlanRequest, ExamPlanResponse
-from backend.core.allocator.exam_allocator import generate_exam_plan
+from core.allocator.exam_allocator import generate_exam_plan
 
 router = APIRouter(prefix="/exam", tags=["exam"])
 
