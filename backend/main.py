@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.generate_weekly_plan import router as weekly_router
-from backend.api.generate_exam_plan import router as exam_router
+from api.generate_weekly_plan import router as weekly_router
+from api.generate_exam_plan import router as exam_router
 
 app = FastAPI()
 
