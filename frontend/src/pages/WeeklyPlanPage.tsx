@@ -3,6 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import { WeeklyPlanForm } from "@/components/WeeklyPlanForm";
 import { generateWeeklyPlan } from "@/api/client";
 import WeeklyTimeline from "@/components/WeeklyTimeline";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 export default function WeeklyPlanPage() {
   const [error, setError] = useState<string | null>(null);
@@ -14,20 +15,39 @@ export default function WeeklyPlanPage() {
     setLoading(true);
     setPlan(null);
 
-    const result = await generateWeeklyPlan(payload);
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    setLoading(false);
+    while (attempts < maxAttempts) {
+      try {
+        const result = await generateWeeklyPlan(payload);
 
-    if (!result.ok) {
-      setError(result.error || "Failed to generate weekly plan.");
-      return;
+        if (!result.ok) {
+          throw new Error(result.error || "Failed to generate weekly plan.");
+        }
+
+        setPlan(result.data.plan);
+        setLoading(false);
+        return;
+
+      } catch (err) {
+        attempts++;
+
+        if (attempts < maxAttempts) {
+          setError("Server is waking up… retrying");
+          await new Promise((res) => setTimeout(res, 3000));
+        } else {
+          setError("Server unavailable. Please try again in 30 seconds.");
+          setLoading(false);
+        }
+      }
     }
-
-    setPlan(result.data.plan);
   }
 
   return (
     <AppLayout>
+      <LoadingOverlay isVisible={loading} />
+
       <div className="max-w-3xl mx-auto space-y-6">
 
         {/* Error Box */}
@@ -39,13 +59,6 @@ export default function WeeklyPlanPage() {
 
         {/* Form */}
         <WeeklyPlanForm onGenerate={handleGenerate} loading={loading} />
-
-        {/* Loading */}
-        {loading && (
-          <div className="text-gray-600 text-center mt-4">
-            Generating plan…
-          </div>
-        )}
 
         {/* Empty State */}
         {!loading && !plan && (

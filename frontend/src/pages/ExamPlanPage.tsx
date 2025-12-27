@@ -3,6 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import { ExamPlanForm } from "@/components/ExamPlanForm";
 import { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
@@ -14,20 +15,39 @@ export default function ExamPlanPage() {
     setLoading(true);
     setPlan(null);
 
-    const result = await generateExamPlan(payload);
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    setLoading(false);
+    while (attempts < maxAttempts) {
+      try {
+        const result = await generateExamPlan(payload);
 
-    if (!result.ok) {
-      setError(result.error || "Failed to generate exam plan.");
-      return;
+        if (!result.ok) {
+          throw new Error(result.error || "Failed to generate exam plan.");
+        }
+
+        setPlan(result.data.plan);
+        setLoading(false);
+        return;
+
+      } catch (err) {
+        attempts++;
+
+        if (attempts < maxAttempts) {
+          setError("Server is waking up… retrying");
+          await new Promise((res) => setTimeout(res, 3000));
+        } else {
+          setError("Server unavailable. Please try again in 30 seconds.");
+          setLoading(false);
+        }
+      }
     }
-
-    setPlan(result.data.plan);
   }
 
   return (
     <AppLayout>
+      <LoadingOverlay isVisible={loading} />
+
       <div className="max-w-3xl mx-auto space-y-6">
 
         {/* Error Box */}
@@ -39,13 +59,6 @@ export default function ExamPlanPage() {
 
         {/* Form */}
         <ExamPlanForm onGenerate={handleGenerate} loading={loading} />
-
-        {/* Loading */}
-        {loading && (
-          <div className="text-gray-600 text-center mt-4">
-            Generating plan…
-          </div>
-        )}
 
         {/* Empty State */}
         {!loading && !plan && (
