@@ -67,6 +67,10 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
   }
 
   function handleSubmit(e: React.FormEvent) {
+    if (weeklySubjects.length === 0) {
+      alert("Please add at least one subject before generating a plan.");
+      return;
+    }
     e.preventDefault();
 
     const payload = {

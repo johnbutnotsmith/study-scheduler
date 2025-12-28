@@ -66,6 +66,10 @@ export function ExamPlanForm({ onGenerate, loading }: any) {
   }
 
   function handleSubmit(e: React.FormEvent) {
+    if (exams.length === 0) {
+      alert("Please add at least one exam before generating a plan.");
+      return;
+    }
     e.preventDefault();
 
     const payload = {

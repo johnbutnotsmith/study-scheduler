@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import Head from "next/head";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
@@ -12,6 +13,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "text-blue-600 font-semibold";
 
   return (
+    <Head>
+      <title>Study Scheduler</title>
+    </Head>
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow">
