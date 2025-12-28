@@ -1,7 +1,25 @@
 import { useState } from "react";
 
-export function WeeklyPlanForm({ onGenerate, loading }: any) {
-  const [weeklySubjects, setWeeklySubjects] = useState<any[]>([]);
+type WeeklyTopic = {
+  name: string;
+};
+
+type WeeklySubject = {
+  name: string;
+  hours_per_week: number;
+  difficulty: number;
+  confidence: number;
+  topics: WeeklyTopic[];
+};
+
+export function WeeklyPlanForm({
+  onGenerate,
+  loading,
+}: {
+  onGenerate: (payload: any) => void;
+  loading: boolean;
+}) {
+  const [weeklySubjects, setWeeklySubjects] = useState<WeeklySubject[]>([]);
 
   // Unified V2 availability (matches ExamPlanForm)
   const [availability] = useState({
@@ -16,7 +34,7 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
     },
     rest_days: [],
     start_date: "",
-    end_date: "", // <-- REQUIRED for allocator consistency
+    end_date: "", // REQUIRED for allocator consistency
   });
 
   const [settings] = useState({
@@ -48,7 +66,11 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
     setWeeklySubjects((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateSubject(index: number, field: string, value: any) {
+  function updateSubject(
+    index: number,
+    field: keyof WeeklySubject,
+    value: any
+  ) {
     setWeeklySubjects((prev) =>
       prev.map((subj, i) =>
         i === index ? { ...subj, [field]: value } : subj
@@ -76,20 +98,26 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
         i === subjectIndex
           ? {
               ...subj,
-              topics: subj.topics.filter((_: any, j: number) => j !== topicIndex),
+              topics: subj.topics.filter(
+                (_: WeeklyTopic, j: number) => j !== topicIndex
+              ),
             }
           : subj
       )
     );
   }
 
-  function updateTopic(subjectIndex: number, topicIndex: number, value: string) {
+  function updateTopic(
+    subjectIndex: number,
+    topicIndex: number,
+    value: string
+  ) {
     setWeeklySubjects((prev) =>
       prev.map((subj, i) =>
         i === subjectIndex
           ? {
               ...subj,
-              topics: subj.topics.map((t, j) =>
+              topics: subj.topics.map((t: WeeklyTopic, j: number) =>
                 j === topicIndex ? { ...t, name: value } : t
               ),
             }
@@ -103,7 +131,7 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
   // -------------------------
 
   function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); // prevent navigation
+    e.preventDefault();
 
     if (weeklySubjects.length === 0) {
       alert("Please add at least one subject before generating a plan.");
@@ -210,7 +238,7 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
                 </button>
               </div>
 
-              {subject.topics.map((topic: any, tIndex: number) => (
+              {subject.topics.map((topic, tIndex) => (
                 <div key={tIndex} className="flex items-center gap-2">
                   <input
                     className="flex-1 border p-2 rounded"

@@ -34,7 +34,7 @@ export function ExamPlanForm({
     },
     rest_days: [],
     start_date: "",
-    end_date: "", // <-- REQUIRED
+    end_date: "", // REQUIRED
   });
 
   const [settings] = useState({
@@ -98,7 +98,7 @@ export function ExamPlanForm({
         i === examIndex
           ? {
               ...exam,
-              topics: exam.topics.filter((_, j) => j !== topicIndex),
+              topics: exam.topics.filter((_: Topic, j: number) => j !== topicIndex),
             }
           : exam
       )
@@ -115,7 +115,7 @@ export function ExamPlanForm({
         i === examIndex
           ? {
               ...exam,
-              topics: subj.topics.map((t: any, j: number) =>
+              topics: exam.topics.map((t: Topic, j: number) =>
                 j === topicIndex ? { ...t, name: value } : t
               ),
             }
@@ -129,7 +129,7 @@ export function ExamPlanForm({
   // -------------------------
 
   function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); // prevent navigation
+    e.preventDefault();
 
     if (exams.length === 0) {
       alert("Please add at least one exam before generating a plan.");
