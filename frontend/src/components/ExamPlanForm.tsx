@@ -115,7 +115,7 @@ export function ExamPlanForm({
         i === examIndex
           ? {
               ...exam,
-              topics: exam.topics.map((t, j) =>
+              topics: subj.topics.map((t: any, j: number) =>
                 j === topicIndex ? { ...t, name: value } : t
               ),
             }

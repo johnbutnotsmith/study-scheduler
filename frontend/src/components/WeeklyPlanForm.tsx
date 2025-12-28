@@ -76,7 +76,7 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
         i === subjectIndex
           ? {
               ...subj,
-              topics: subj.topics.filter((_, j) => j !== topicIndex),
+              topics: subj.topics.filter((_: any, j: number) => j !== topicIndex),
             }
           : subj
       )
