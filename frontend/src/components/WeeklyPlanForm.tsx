@@ -3,7 +3,7 @@ import { useState } from "react";
 export function WeeklyPlanForm({ onGenerate, loading }: any) {
   const [weeklySubjects, setWeeklySubjects] = useState<any[]>([]);
 
-  // Default availability + settings (minimal version)
+  // Unified V2 availability (matches ExamPlanForm)
   const [availability] = useState({
     minutes_per_weekday: {
       Monday: 120,
@@ -16,6 +16,7 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
     },
     rest_days: [],
     start_date: "",
+    end_date: "", // <-- REQUIRED for allocator consistency
   });
 
   const [settings] = useState({
@@ -26,52 +27,88 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
     auto_rebalance: true,
   });
 
+  // -------------------------
+  // SUBJECT MANAGEMENT
+  // -------------------------
+
   function addSubject() {
-    setWeeklySubjects([
-      ...weeklySubjects,
+    setWeeklySubjects((prev) => [
+      ...prev,
       {
-        id: "",
         name: "",
         hours_per_week: 2,
         difficulty: 3,
-        familiarity: 3,
-        priority: "medium",
-        topics: [],
+        confidence: 3,
+        topics: [{ name: "" }],
       },
     ]);
   }
 
-  function updateSubject(index: number, field: string, value: any) {
-    const updated = [...weeklySubjects];
-    updated[index][field] = value;
-    setWeeklySubjects(updated);
+  function removeSubject(index: number) {
+    setWeeklySubjects((prev) => prev.filter((_, i) => i !== index));
   }
+
+  function updateSubject(index: number, field: string, value: any) {
+    setWeeklySubjects((prev) =>
+      prev.map((subj, i) =>
+        i === index ? { ...subj, [field]: value } : subj
+      )
+    );
+  }
+
+  // -------------------------
+  // TOPIC MANAGEMENT
+  // -------------------------
 
   function addTopic(subjectIndex: number) {
-    const updated = [...weeklySubjects];
-    updated[subjectIndex].topics.push({
-      id: "",
-      name: "",
-      difficulty: 3,
-      familiarity: 3,
-      priority: "medium",
-      confidence: 3,
-    });
-    setWeeklySubjects(updated);
+    setWeeklySubjects((prev) =>
+      prev.map((subj, i) =>
+        i === subjectIndex
+          ? { ...subj, topics: [...subj.topics, { name: "" }] }
+          : subj
+      )
+    );
   }
 
-  function updateTopic(subjectIndex: number, topicIndex: number, field: string, value: any) {
-    const updated = [...weeklySubjects];
-    updated[subjectIndex].topics[topicIndex][field] = value;
-    setWeeklySubjects(updated);
+  function removeTopic(subjectIndex: number, topicIndex: number) {
+    setWeeklySubjects((prev) =>
+      prev.map((subj, i) =>
+        i === subjectIndex
+          ? {
+              ...subj,
+              topics: subj.topics.filter((_, j) => j !== topicIndex),
+            }
+          : subj
+      )
+    );
   }
+
+  function updateTopic(subjectIndex: number, topicIndex: number, value: string) {
+    setWeeklySubjects((prev) =>
+      prev.map((subj, i) =>
+        i === subjectIndex
+          ? {
+              ...subj,
+              topics: subj.topics.map((t, j) =>
+                j === topicIndex ? { ...t, name: value } : t
+              ),
+            }
+          : subj
+      )
+    );
+  }
+
+  // -------------------------
+  // SUBMIT HANDLING
+  // -------------------------
 
   function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); // prevent navigation
+
     if (weeklySubjects.length === 0) {
       alert("Please add at least one subject before generating a plan.");
       return;
     }
-    e.preventDefault();
 
     const payload = {
       weekly_subjects: weeklySubjects,
@@ -82,9 +119,9 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
     onGenerate(payload);
   }
 
-  function handleReset() {
-    setWeeklySubjects([]);
-  }
+  // -------------------------
+  // RENDER
+  // -------------------------
 
   return (
     <div className="p-6 border rounded-lg bg-white shadow space-y-6">
@@ -101,7 +138,16 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
       <form onSubmit={handleSubmit} className="space-y-6">
         {weeklySubjects.map((subject, i) => (
           <div key={i} className="border p-4 rounded bg-gray-50 space-y-4">
-            <h3 className="font-semibold text-lg">Subject #{i + 1}</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Subject #{i + 1}</h3>
+              <button
+                type="button"
+                onClick={() => removeSubject(i)}
+                className="text-sm text-red-600"
+              >
+                Delete subject
+              </button>
+            </div>
 
             <input
               className="w-full border p-2 rounded"
@@ -121,150 +167,79 @@ export function WeeklyPlanForm({ onGenerate, loading }: any) {
               required
             />
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label>Difficulty</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={subject.difficulty}
-                  onChange={(e) =>
-                    updateSubject(i, "difficulty", Number(e.target.value))
-                  }
-                />
-              </div>
+            {/* Difficulty */}
+            <div>
+              <label className="font-medium text-sm">Difficulty</label>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                value={subject.difficulty}
+                onChange={(e) =>
+                  updateSubject(i, "difficulty", Number(e.target.value))
+                }
+                className="w-full"
+              />
+            </div>
 
-              <div>
-                <label>Familiarity</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={subject.familiarity}
-                  onChange={(e) =>
-                    updateSubject(i, "familiarity", Number(e.target.value))
-                  }
-                />
-              </div>
-
-              <div>
-                <label>Priority</label>
-                <select
-                  className="border p-2 rounded w-full"
-                  value={subject.priority}
-                  onChange={(e) =>
-                    updateSubject(i, "priority", e.target.value)
-                  }
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
+            {/* Confidence */}
+            <div>
+              <label className="font-medium text-sm">Confidence</label>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                value={subject.confidence}
+                onChange={(e) =>
+                  updateSubject(i, "confidence", Number(e.target.value))
+                }
+                className="w-full"
+              />
             </div>
 
             {/* Topics */}
             <div className="space-y-2">
-              <h4 className="font-medium">Topics (optional)</h4>
+              <div className="flex justify-between items-center">
+                <span className="font-medium text-sm">Topics</span>
+                <button
+                  type="button"
+                  onClick={() => addTopic(i)}
+                  className="text-xs text-blue-600"
+                >
+                  + Add topic
+                </button>
+              </div>
 
               {subject.topics.map((topic: any, tIndex: number) => (
-                <div key={tIndex} className="border p-3 rounded bg-white space-y-2">
+                <div key={tIndex} className="flex items-center gap-2">
                   <input
-                    className="w-full border p-2 rounded"
+                    className="flex-1 border p-2 rounded"
                     placeholder="Topic name"
                     value={topic.name}
                     onChange={(e) =>
-                      updateTopic(i, tIndex, "name", e.target.value)
+                      updateTopic(i, tIndex, e.target.value)
                     }
                   />
-
-                  <div className="grid grid-cols-4 gap-4">
-                    <div>
-                      <label>Difficulty</label>
-                      <input
-                        type="range"
-                        min="1"
-                        max="5"
-                        value={topic.difficulty}
-                        onChange={(e) =>
-                          updateTopic(i, tIndex, "difficulty", Number(e.target.value))
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label>Familiarity</label>
-                      <input
-                        type="range"
-                        min="1"
-                        max="5"
-                        value={topic.familiarity}
-                        onChange={(e) =>
-                          updateTopic(i, tIndex, "familiarity", Number(e.target.value))
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label>Priority</label>
-                      <select
-                        className="border p-2 rounded w-full"
-                        value={topic.priority}
-                        onChange={(e) =>
-                          updateTopic(i, tIndex, "priority", e.target.value)
-                        }
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label>Confidence</label>
-                      <input
-                        type="range"
-                        min="1"
-                        max="5"
-                        value={topic.confidence}
-                        onChange={(e) =>
-                          updateTopic(i, tIndex, "confidence", Number(e.target.value))
-                        }
-                      />
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeTopic(i, tIndex)}
+                    className="text-xs text-red-600"
+                  >
+                    ✕
+                  </button>
                 </div>
               ))}
-
-              <button
-                type="button"
-                onClick={() => addTopic(i)}
-                className="bg-blue-600 text-white px-3 py-1 rounded"
-              >
-                + Add Topic
-              </button>
             </div>
           </div>
         ))}
 
-        <div className="flex items-center space-x-3">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-            disabled={loading}
-          >
-            {loading ? "Generating..." : "Generate"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-4 py-2 rounded border"
-          >
-            Reset
-          </button>
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          {loading ? "Generating..." : "Generate"}
+        </button>
       </form>
     </div>
   );
