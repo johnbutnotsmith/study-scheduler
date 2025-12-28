@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import {
+import type {
   ExamSpec,
   TopicSpec,
   AvailabilitySpec,
