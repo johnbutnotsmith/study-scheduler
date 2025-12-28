@@ -2,7 +2,7 @@ import { useState } from "react";
 
 export function ExamPlanForm({ onGenerate, loading }: any) {
   const [exams, setExams] = useState<any[]>([]);
-  const [availability, setAvailability] = useState({
+  const [availability] = useState({
     minutes_per_weekday: {
       Monday: 120,
       Tuesday: 120,
@@ -16,7 +16,7 @@ export function ExamPlanForm({ onGenerate, loading }: any) {
     start_date: "",
   });
 
-  const [settings, setSettings] = useState({
+  const [settings] = useState({
     daily_study_limit_hours: 4,
     max_session_length_minutes: 50,
     break_length_minutes: 10,
