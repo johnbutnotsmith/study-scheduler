@@ -26,7 +26,7 @@ export default function WeeklyPlanPage() {
           throw new Error(result.error || "Failed to generate weekly plan.");
         }
 
-        setPlan(result.data.plan);
+        setPlan(result.data?.plan ?? null);
         setLoading(false);
         return;
 

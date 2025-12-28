@@ -1,49 +1,57 @@
 import { useState } from "react";
+import {
+  WeeklySubjectSpec,
+  TopicSpec,
+  WeeklyAvailabilitySpec,
+  WeeklySettings,
+  WeeklyPlanRequestV2,
+} from "../api/types";
 
-type WeeklyTopic = {
-  name: string;
+const PRIORITY_OPTIONS = ["low", "medium", "high"] as const;
+
+const DEFAULT_MINUTES_PER_WEEKDAY: WeeklyAvailabilitySpec["minutes_per_weekday"] = {
+  Monday: 120,
+  Tuesday: 120,
+  Wednesday: 120,
+  Thursday: 120,
+  Friday: 120,
+  Saturday: 180,
+  Sunday: 180,
 };
 
-type WeeklySubject = {
-  name: string;
-  hours_per_week: number;
-  difficulty: number;
-  confidence: number;
-  topics: WeeklyTopic[];
+const DEFAULT_WEEKLY_SETTINGS: WeeklySettings = {
+  min_light_session: 20,
+  max_subjects_per_day: 3,
+  max_subjects_per_block: 2,
+  deep_work_min: 60,
+  deep_work_max: 90,
+  medium_min: 40,
+  medium_max: 60,
+  light_min: 20,
+  light_max: 40,
+  min_sessions_per_subject_per_week: 1,
+  max_sessions_per_subject_per_week: 7,
+  difficulty_weight: 1.0,
+  unfamiliarity_weight: 1.0,
+  max_daily_minutes: 300,
 };
 
 export function WeeklyPlanForm({
   onGenerate,
   loading,
 }: {
-  onGenerate: (payload: any) => void;
+  onGenerate: (payload: WeeklyPlanRequestV2) => void;
   loading: boolean;
 }) {
-  const [weeklySubjects, setWeeklySubjects] = useState<WeeklySubject[]>([]);
+  const [weeklySubjects, setWeeklySubjects] = useState<WeeklySubjectSpec[]>([]);
 
-  // Unified V2 availability (matches ExamPlanForm)
-  const [availability] = useState({
-    minutes_per_weekday: {
-      Monday: 120,
-      Tuesday: 120,
-      Wednesday: 120,
-      Thursday: 120,
-      Friday: 120,
-      Saturday: 180,
-      Sunday: 180,
-    },
+  const [availability] = useState<WeeklyAvailabilitySpec>({
+    start_date: new Date().toISOString().slice(0, 10),
+    minutes_per_weekday: DEFAULT_MINUTES_PER_WEEKDAY,
     rest_days: [],
-    start_date: "",
-    end_date: "", // REQUIRED for allocator consistency
   });
 
-  const [settings] = useState({
-    daily_study_limit_hours: 4,
-    max_session_length_minutes: 50,
-    break_length_minutes: 10,
-    cognitive_load_sensitivity: 3,
-    auto_rebalance: true,
-  });
+  const [settings] = useState<WeeklySettings>(DEFAULT_WEEKLY_SETTINGS);
 
   // -------------------------
   // SUBJECT MANAGEMENT
@@ -56,8 +64,17 @@ export function WeeklyPlanForm({
         name: "",
         hours_per_week: 2,
         difficulty: 3,
-        confidence: 3,
-        topics: [{ name: "" }],
+        familiarity: 3,
+        priority: "medium",
+        topics: [
+          {
+            name: "",
+            difficulty: 3,
+            familiarity: 3,
+            priority: "medium",
+            confidence: 3,
+          },
+        ],
       },
     ]);
   }
@@ -66,15 +83,13 @@ export function WeeklyPlanForm({
     setWeeklySubjects((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateSubject(
+  function updateSubject<K extends keyof WeeklySubjectSpec>(
     index: number,
-    field: keyof WeeklySubject,
-    value: any
+    field: K,
+    value: WeeklySubjectSpec[K]
   ) {
     setWeeklySubjects((prev) =>
-      prev.map((subj, i) =>
-        i === index ? { ...subj, [field]: value } : subj
-      )
+      prev.map((subj, i) => (i === index ? { ...subj, [field]: value } : subj))
     );
   }
 
@@ -86,7 +101,19 @@ export function WeeklyPlanForm({
     setWeeklySubjects((prev) =>
       prev.map((subj, i) =>
         i === subjectIndex
-          ? { ...subj, topics: [...subj.topics, { name: "" }] }
+          ? {
+              ...subj,
+              topics: [
+                ...subj.topics,
+                {
+                  name: "",
+                  difficulty: 3,
+                  familiarity: 3,
+                  priority: "medium",
+                  confidence: 3,
+                } as TopicSpec,
+              ],
+            }
           : subj
       )
     );
@@ -98,27 +125,26 @@ export function WeeklyPlanForm({
         i === subjectIndex
           ? {
               ...subj,
-              topics: subj.topics.filter(
-                (_: WeeklyTopic, j: number) => j !== topicIndex
-              ),
+              topics: subj.topics.filter((_, j) => j !== topicIndex),
             }
           : subj
       )
     );
   }
 
-  function updateTopic(
+  function updateTopicField<K extends keyof TopicSpec>(
     subjectIndex: number,
     topicIndex: number,
-    value: string
+    field: K,
+    value: TopicSpec[K]
   ) {
     setWeeklySubjects((prev) =>
       prev.map((subj, i) =>
         i === subjectIndex
           ? {
               ...subj,
-              topics: subj.topics.map((t: WeeklyTopic, j: number) =>
-                j === topicIndex ? { ...t, name: value } : t
+              topics: subj.topics.map((t, j) =>
+                j === topicIndex ? { ...t, [field]: value } : t
               ),
             }
           : subj
@@ -138,7 +164,7 @@ export function WeeklyPlanForm({
       return;
     }
 
-    const payload = {
+    const payload: WeeklyPlanRequestV2 = {
       weekly_subjects: weeklySubjects,
       availability,
       settings,
@@ -177,6 +203,7 @@ export function WeeklyPlanForm({
               </button>
             </div>
 
+            {/* Name */}
             <input
               className="w-full border p-2 rounded"
               placeholder="Subject name"
@@ -185,6 +212,7 @@ export function WeeklyPlanForm({
               required
             />
 
+            {/* Hours per week */}
             <input
               type="number"
               className="w-full border p-2 rounded"
@@ -197,7 +225,9 @@ export function WeeklyPlanForm({
 
             {/* Difficulty */}
             <div>
-              <label className="font-medium text-sm">Difficulty</label>
+              <label className="font-medium text-sm">
+                Difficulty ({subject.difficulty})
+              </label>
               <input
                 type="range"
                 min="1"
@@ -210,19 +240,39 @@ export function WeeklyPlanForm({
               />
             </div>
 
-            {/* Confidence */}
+            {/* Familiarity */}
             <div>
-              <label className="font-medium text-sm">Confidence</label>
+              <label className="font-medium text-sm">
+                Familiarity ({subject.familiarity})
+              </label>
               <input
                 type="range"
                 min="1"
                 max="5"
-                value={subject.confidence}
+                value={subject.familiarity}
                 onChange={(e) =>
-                  updateSubject(i, "confidence", Number(e.target.value))
+                  updateSubject(i, "familiarity", Number(e.target.value))
                 }
                 className="w-full"
               />
+            </div>
+
+            {/* Priority */}
+            <div>
+              <label className="font-medium text-sm">Priority</label>
+              <select
+                value={subject.priority}
+                onChange={(e) =>
+                  updateSubject(i, "priority", e.target.value as any)
+                }
+                className="w-full border rounded px-2 py-1"
+              >
+                {PRIORITY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt[0].toUpperCase() + opt.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Topics */}
@@ -239,22 +289,115 @@ export function WeeklyPlanForm({
               </div>
 
               {subject.topics.map((topic, tIndex) => (
-                <div key={tIndex} className="flex items-center gap-2">
-                  <input
-                    className="flex-1 border p-2 rounded"
-                    placeholder="Topic name"
-                    value={topic.name}
-                    onChange={(e) =>
-                      updateTopic(i, tIndex, e.target.value)
-                    }
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeTopic(i, tIndex)}
-                    className="text-xs text-red-600"
-                  >
-                    ✕
-                  </button>
+                <div key={tIndex} className="border rounded p-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="flex-1 border p-2 rounded"
+                      placeholder="Topic name"
+                      value={topic.name}
+                      onChange={(e) =>
+                        updateTopicField(i, tIndex, "name", e.target.value)
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeTopic(i, tIndex)}
+                      className="text-xs text-red-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {/* Topic difficulty */}
+                    <div>
+                      <label className="text-xs font-medium">
+                        Difficulty ({topic.difficulty})
+                      </label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        value={topic.difficulty}
+                        onChange={(e) =>
+                          updateTopicField(
+                            i,
+                            tIndex,
+                            "difficulty",
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Topic familiarity */}
+                    <div>
+                      <label className="text-xs font-medium">
+                        Familiarity ({topic.familiarity})
+                      </label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        value={topic.familiarity}
+                        onChange={(e) =>
+                          updateTopicField(
+                            i,
+                            tIndex,
+                            "familiarity",
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Topic confidence */}
+                    <div>
+                      <label className="text-xs font-medium">
+                        Confidence ({topic.confidence})
+                      </label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        value={topic.confidence}
+                        onChange={(e) =>
+                          updateTopicField(
+                            i,
+                            tIndex,
+                            "confidence",
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Topic priority */}
+                    <div>
+                      <label className="text-xs font-medium">Priority</label>
+                      <select
+                        value={topic.priority}
+                        onChange={(e) =>
+                          updateTopicField(
+                            i,
+                            tIndex,
+                            "priority",
+                            e.target.value as any
+                          )
+                        }
+                        className="w-full border rounded px-2 py-1 text-xs"
+                      >
+                        {PRIORITY_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt[0].toUpperCase() + opt.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -266,7 +409,7 @@ export function WeeklyPlanForm({
           disabled={loading}
           className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
         >
-          {loading ? "Generating..." : "Generate"}
+          {loading ? "Generating..." : "Generate Weekly Plan"}
         </button>
       </form>
     </div>
