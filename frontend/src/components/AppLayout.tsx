@@ -13,10 +13,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "text-blue-600 font-semibold";
 
   return (
+    
+    <div className="min-h-screen bg-gray-100">
     <Head>
       <title>Study Scheduler</title>
     </Head>
-    <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
