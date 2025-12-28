@@ -27,6 +27,7 @@ async function request(path: string, payload: any) {
   }
 }
 
+// V2 endpoints (backend is now V2-only)
 export async function generateWeeklyPlan(payload: any) {
   return request("/weekly/generate", payload);
 }

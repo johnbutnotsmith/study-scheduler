@@ -1,96 +1,98 @@
 from datetime import date, datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 from fastapi import APIRouter, HTTPException
 
-from .schemas import ExamPlanRequest, ExamPlanResponse
+from .schemas import ExamPlanRequestV2, ExamPlanResponse
 from core.allocator.exam_allocator import generate_exam_plan
 
 router = APIRouter(prefix="/exam", tags=["exam"])
 
 
-def _build_exam_availability(exam_date_str: str, total_hours: int) -> Dict[str, Any]:
+def _validate_exam_dates_and_hours(payload: ExamPlanRequestV2) -> None:
+    """Basic validation for exams: dates and hours."""
     today = date.today()
-    try:
-        exam_date = datetime.strptime(exam_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(400, "Invalid exam_date format. Expected YYYY-MM-DD.")
 
-    if total_hours <= 0:
-        raise HTTPException(400, "Hours available must be greater than zero.")
+    if not payload.exams or len(payload.exams) == 0:
+        raise HTTPException(400, "At least one exam is required.")
 
-    if exam_date < today:
-        raise HTTPException(400, "Exam date must be today or in the future.")
+    for exam in payload.exams:
+        # Validate hours
+        if exam.hours_available <= 0:
+            raise HTTPException(
+                400,
+                f"Hours available must be greater than zero for exam '{exam.subject}'.",
+            )
 
-    if exam_date == today:
-        days_span = 1
-        start = exam_date
-        end = exam_date
-    else:
-        days_span = (exam_date - today).days
-        start = today
-        end = exam_date
+        # Validate exam date format and that it's today or in the future
+        try:
+            exam_date = datetime.strptime(exam.exam_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                400,
+                f"Invalid exam_date format for exam '{exam.subject}'. Expected YYYY-MM-DD.",
+            )
 
-    total_minutes = total_hours * 60
-    minutes_per_day = total_minutes // max(days_span, 1)
+        if exam_date < today:
+            raise HTTPException(
+                400,
+                f"Exam date for '{exam.subject}' must be today or in the future.",
+            )
 
-    minutes_per_weekday = {
-        "Monday": minutes_per_day,
-        "Tuesday": minutes_per_day,
-        "Wednesday": minutes_per_day,
-        "Thursday": minutes_per_day,
-        "Friday": minutes_per_day,
-        "Saturday": minutes_per_day,
-        "Sunday": minutes_per_day,
-    }
 
-    return {
-        "start_date": start.isoformat(),
-        "end_date": end.isoformat(),
-        "minutes_per_weekday": minutes_per_weekday,
-        "rest_dates": [],
-    }
+def _ensure_availability_start_date(payload: ExamPlanRequestV2) -> Dict[str, Any]:
+    """
+    Ensure availability has a start_date.
+    If not provided by the client, default to today.
+    """
+    availability = payload.availability.dict()
+    if not availability.get("start_date"):
+        availability["start_date"] = date.today().isoformat()
+    return availability
 
 
 @router.post("/generate", response_model=ExamPlanResponse)
-def generate_exam_plan_endpoint(payload: ExamPlanRequest) -> ExamPlanResponse:
-    # Validate topics
-    if not payload.topics or len(payload.topics) == 0:
-        raise HTTPException(400, "At least one topic is required.")
+def generate_exam_plan_endpoint(payload: ExamPlanRequestV2) -> ExamPlanResponse:
+    """
+    V2 endpoint: accepts rich exam input with:
+    - multiple exams
+    - topics with difficulty/familiarity/priority/confidence
+    - availability
+    - optional settings
+    """
 
-    # Validate hours
-    if payload.hours_available <= 0:
-        raise HTTPException(400, "Hours available must be greater than zero.")
+    # Validate exams (dates and hours)
+    _validate_exam_dates_and_hours(payload)
 
-    # Validate exam date format
-    try:
-        datetime.strptime(payload.exam_date, "%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(400, "Invalid exam_date format. Expected YYYY-MM-DD.")
+    # Ensure availability has a start_date
+    availability_dict = _ensure_availability_start_date(payload)
 
-    topics_for_exam: List[Dict[str, Any]] = [
-        {"id": f"t{i}", "name": name}
-        for i, name in enumerate(payload.topics)
-    ]
+    # Build exams list for allocator
+    exams_for_allocator: List[Dict[str, Any]] = []
+    for i, exam in enumerate(payload.exams):
+        exam_id = exam.id or f"exam-{i+1}"
 
-    exam_dict = {
-        "id": "exam-1",
-        "subject": "Exam",
-        "exam_date": payload.exam_date,
-        "difficulty": 3,
-        "familiarity": 3,
-        "topics": topics_for_exam,
-    }
+        topics_for_exam = [topic.dict() for topic in exam.topics]
 
-    availability_dict = _build_exam_availability(
-        exam_date_str=payload.exam_date,
-        total_hours=payload.hours_available,
-    )
+        exams_for_allocator.append(
+            {
+                "id": exam_id,
+                "subject": exam.subject,
+                "exam_date": exam.exam_date,
+                "hours_available": exam.hours_available,
+                "difficulty": exam.difficulty,
+                "familiarity": exam.familiarity,
+                "priority": exam.priority,
+                "topics": topics_for_exam,
+            }
+        )
+
+    settings_dict = payload.settings.dict() if payload.settings is not None else None
 
     plan_dict = generate_exam_plan(
-        exams=[exam_dict],
+        exams=exams_for_allocator,
         availability=availability_dict,
-        settings=None,
+        settings=settings_dict,
     )
 
     return ExamPlanResponse(plan=plan_dict)

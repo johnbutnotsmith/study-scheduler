@@ -10,7 +10,7 @@ export default function WeeklyPlanPage() {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<any | null>(null);
 
-  async function handleGenerate(payload: any) {
+  async function handleGenerate(payload: Record<string, any>) {
     setError(null);
     setLoading(true);
     setPlan(null);
