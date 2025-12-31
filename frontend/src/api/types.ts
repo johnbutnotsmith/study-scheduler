@@ -66,3 +66,17 @@ export interface WeeklyPlanRequest {
 export interface WeeklyPlanResponse {
   plan: Record<string, any>;
 }
+
+
+
+export interface ApiSuccess<T> {
+  ok: true;
+  data: T;
+}
+
+export interface ApiError {
+  ok: false;
+  error: string;
+}
+
+export type ApiResult<T> = ApiSuccess<T> | ApiError;

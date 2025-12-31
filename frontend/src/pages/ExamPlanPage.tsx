@@ -9,7 +9,7 @@ import type { ExamPlanRequest, ExamPlanResponse } from "@/api/types";
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState<ExamPlanResponse["plan"] | null>(null);
+  const [plan, setPlan] = useState<any | null>(null);
 
   async function handleGenerate(payload: ExamPlanRequest) {
     setError(null);

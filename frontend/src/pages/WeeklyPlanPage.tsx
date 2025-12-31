@@ -9,7 +9,7 @@ import type { WeeklyPlanRequest, WeeklyPlanResponse } from "@/api/types";
 export default function WeeklyPlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState<WeeklyPlanResponse["plan"] | null>(null);
+  const [plan, setPlan] = useState<any | null>(null);
 
   async function handleGenerate(payload: WeeklyPlanRequest) {
     setError(null);
