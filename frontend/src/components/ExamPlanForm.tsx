@@ -21,6 +21,10 @@ const DEFAULT_MINUTES_PER_WEEKDAY: ExamAvailability["minutes_per_weekday"] = {
   Sunday: 180,
 };
 
+function isValidDate(d: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(d);
+}
+
 export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   const [subjects, setSubjects] = useState<ExamSubject[]>([]);
 
@@ -30,13 +34,16 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   const availability: ExamAvailability | null = useMemo(() => {
     if (subjects.length === 0) return null;
 
-    const examDates = subjects
+    const validExamDates = subjects
       .map((s) => s.exam_date)
-      .filter(Boolean)
+      .filter((d) => isValidDate(d))
       .sort();
 
     const today = new Date().toISOString().slice(0, 10);
-    const endDate = examDates.length > 0 ? examDates[examDates.length - 1] : today;
+    const endDate =
+      validExamDates.length > 0
+        ? validExamDates[validExamDates.length - 1]
+        : today;
 
     return {
       start_date: today,
@@ -139,19 +146,41 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (subjects.length === 0) {
+    // Freeze state snapshot to avoid React async timing issues
+    const currentSubjects = [...subjects];
+
+    if (currentSubjects.length === 0) {
       alert("Please add at least one subject.");
       return;
     }
 
-    if (!availability) {
-      alert("Please set at least one exam date.");
+    // Validate subjects
+    for (const subj of currentSubjects) {
+      if (!subj.name.trim()) {
+        alert("Each subject must have a name.");
+        return;
+      }
+      if (!isValidDate(subj.exam_date)) {
+        alert("Each subject must have a valid exam date.");
+        return;
+      }
+      for (const topic of subj.topics) {
+        if (!topic.name.trim()) {
+          alert("Each topic must have a name.");
+          return;
+        }
+      }
+    }
+
+    const currentAvailability = availability;
+    if (!currentAvailability) {
+      alert("Availability could not be computed.");
       return;
     }
 
     const payload: ExamPlanRequest = {
-      subjects,
-      availability,
+      subjects: currentSubjects,
+      availability: currentAvailability,
     };
 
     onGenerate(payload);
@@ -276,7 +305,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {/* Topic priority */}
                   <div>
                     <label className="text-xs font-medium">
                       Priority ({topic.priority})
@@ -298,7 +326,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
                     />
                   </div>
 
-                  {/* Topic familiarity */}
                   <div>
                     <label className="text-xs font-medium">
                       Familiarity ({topic.familiarity})
