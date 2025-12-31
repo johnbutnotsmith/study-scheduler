@@ -1,24 +1,20 @@
-
-interface Block {
-  start: string | null;
-  end: string | null;
-  subject: string;
-  exam_id: string;
-  topic: { id: string; name: string };
-  minutes: number;
+interface ExamTimelineProps {
+  plan: {
+    days: Array<{
+      date: string;
+      total_minutes: number;
+      blocks: Array<{
+        start: string | null;
+        end: string | null;
+        subject: string;
+        exam_id: string;
+        topic: { id: string | null; name: string };
+        minutes: number;
+      }>;
+    }>;
+  };
 }
 
-interface DayPlan {
-  date: string;
-  total_minutes: number;
-  blocks: Block[];
-}
-
-interface ExamPlan {
-  days: DayPlan[];
-}
-
-// Color palette
 const SUBJECT_COLORS: Record<string, string> = {
   math: "bg-blue-100 border-blue-500",
   biology: "bg-green-100 border-green-500",
@@ -32,7 +28,7 @@ function getColorClass(name: string) {
   return SUBJECT_COLORS[name.toLowerCase()] || "bg-gray-100 border-gray-400";
 }
 
-export default function ExamTimeline({ plan }: { plan: ExamPlan }) {
+export default function ExamTimeline({ plan }: ExamTimelineProps) {
   if (!plan || !plan.days) return null;
 
   return (
@@ -44,9 +40,7 @@ export default function ExamTimeline({ plan }: { plan: ExamPlan }) {
           key={day.date}
           className="border rounded-lg p-4 shadow-sm bg-white space-y-4"
         >
-          <h3 className="text-xl font-semibold text-gray-800">
-            {day.date}
-          </h3>
+          <h3 className="text-xl font-semibold text-gray-800">{day.date}</h3>
 
           {day.blocks.length === 0 && (
             <p className="text-gray-500 italic">Rest day</p>
@@ -58,7 +52,6 @@ export default function ExamTimeline({ plan }: { plan: ExamPlan }) {
                 key={idx}
                 className="border-l-4 border-purple-500 pl-4 py-3 bg-gray-50 rounded"
               >
-                {/* Time */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                   <span className="font-semibold text-gray-700">
                     {block.start && block.end
@@ -71,7 +64,6 @@ export default function ExamTimeline({ plan }: { plan: ExamPlan }) {
                   </span>
                 </div>
 
-                {/* Topic */}
                 <ul className="mt-3 space-y-2">
                   <li
                     className={`flex flex-col sm:flex-row sm:justify-between sm:items-center border-l-4 p-2 rounded ${getColorClass(

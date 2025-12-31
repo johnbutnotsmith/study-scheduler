@@ -1,87 +1,68 @@
+// ============================================================
+// Unified Frontend Types (Aligned with backend schemas.py)
+// ============================================================
+
 // -----------------------------
-// Topic (shared between exam + weekly)
+// Topic (shared)
 // -----------------------------
-export interface TopicSpec {
+export interface Topic {
   id?: string | null;
   name: string;
-  difficulty: number;      // 1–5
-  familiarity: number;     // 1–5
-  priority: string;        // "low" | "medium" | "high"
-  confidence: number;      // 1–5
+  priority: number;      // 1–5
+  familiarity: number;   // 1–5
 }
 
 // -----------------------------
-// Exam Planning (V2)
+// Exam Mode Types
 // -----------------------------
-export interface ExamSpec {
-  id?: string;
-  subject: string;
-  exam_date: string;       // "YYYY-MM-DD"
-  hours_available: number;
-  difficulty: number;      // 1–5
-  familiarity: number;     // 1–5
-  priority: string;        // "low" | "medium" | "high"
-  topics: TopicSpec[];
+export interface ExamSubject {
+  id?: string | null;
+  name: string;
+  exam_date: string;     // "YYYY-MM-DD"
+  difficulty: number;    // 1–5
+  confidence: number;    // 1–5
+  topics: Topic[];
 }
 
-export interface AvailabilitySpec {
-  start_date: string;      // "YYYY-MM-DD"
-  end_date: string;        // "YYYY-MM-DD"
+export interface ExamAvailability {
   minutes_per_weekday: Record<string, number>;
   rest_dates: string[];
+  start_date: string;    // "YYYY-MM-DD"
+  end_date: string;      // "YYYY-MM-DD"
 }
 
-export interface AllocatorSettings {
-  max_daily_minutes: number;
-  difficulty_weight: number;
-  unfamiliarity_weight: number;
-  urgency_weight: number;
+export interface ExamPlanRequest {
+  subjects: ExamSubject[];
+  availability: ExamAvailability;
 }
 
-export interface ExamPlanRequestV2 {
-  exams: ExamSpec[];
-  availability: AvailabilitySpec;
-  settings: AllocatorSettings;
+export interface ExamPlanResponse {
+  plan: Record<string, any>;
 }
 
 // -----------------------------
-// Weekly Planning (V2)
+// Weekly Mode Types
 // -----------------------------
-export interface WeeklySubjectSpec {
-  id?: string;
+export interface WeeklySubject {
+  id?: string | null;
   name: string;
-  hours_per_week: number;
-  difficulty: number;      // 1–5
-  familiarity: number;     // 1–5
-  priority: string;        // "low" | "medium" | "high"
-  topics: TopicSpec[];
+  difficulty: number;    // 1–5
+  confidence: number;    // 1–5
+  topics: Topic[];
 }
 
-export interface WeeklyAvailabilitySpec {
-  start_date: string;      // "YYYY-MM-DD"
+export interface WeeklyAvailability {
   minutes_per_weekday: Record<string, number>;
-  rest_days: string[];
+  rest_dates: string[];
+  start_date: string;    // "YYYY-MM-DD"
 }
 
-export interface WeeklySettings {
-  min_light_session: number;
-  max_subjects_per_day: number;
-  max_subjects_per_block: number;
-  deep_work_min: number;
-  deep_work_max: number;
-  medium_min: number;
-  medium_max: number;
-  light_min: number;
-  light_max: number;
-  min_sessions_per_subject_per_week: number;
-  max_sessions_per_subject_per_week: number;
-  difficulty_weight: number;
-  unfamiliarity_weight: number;
-  max_daily_minutes: number;
+export interface WeeklyPlanRequest {
+  subjects: WeeklySubject[];
+  weekly_hours: number;
+  availability: WeeklyAvailability;
 }
 
-export interface WeeklyPlanRequestV2 {
-  weekly_subjects: WeeklySubjectSpec[];
-  availability: WeeklyAvailabilitySpec;
-  settings: WeeklySettings;
+export interface WeeklyPlanResponse {
+  plan: Record<string, any>;
 }

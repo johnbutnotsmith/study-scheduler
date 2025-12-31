@@ -1,18 +1,17 @@
 import React, { useMemo, useState } from "react";
 import type {
-  ExamSpec,
-  TopicSpec,
-  AvailabilitySpec,
-  AllocatorSettings,
-  ExamPlanRequestV2,
+  ExamSubject,
+  Topic,
+  ExamAvailability,
+  ExamPlanRequest,
 } from "../api/types";
 
 type ExamPlanFormProps = {
-  onGenerate: (payload: ExamPlanRequestV2) => void;
+  onGenerate: (payload: ExamPlanRequest) => void;
   loading: boolean;
 };
 
-const DEFAULT_MINUTES_PER_WEEKDAY: AvailabilitySpec["minutes_per_weekday"] = {
+const DEFAULT_MINUTES_PER_WEEKDAY: ExamAvailability["minutes_per_weekday"] = {
   Monday: 120,
   Tuesday: 120,
   Wednesday: 120,
@@ -22,142 +21,113 @@ const DEFAULT_MINUTES_PER_WEEKDAY: AvailabilitySpec["minutes_per_weekday"] = {
   Sunday: 180,
 };
 
-const DEFAULT_ALLOCATOR_SETTINGS: AllocatorSettings = {
-  max_daily_minutes: 300, // 5 hours
-  difficulty_weight: 1.0,
-  unfamiliarity_weight: 1.0,
-  urgency_weight: 1.0,
-};
-
-const PRIORITY_OPTIONS = ["low", "medium", "high"] as const;
-
 export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
-  const [exams, setExams] = useState<ExamSpec[]>([]);
-
-  // We keep availability + settings as simple, non-editable defaults for now.
-  const [minutesPerWeekday] = useState(DEFAULT_MINUTES_PER_WEEKDAY);
-  const [settings] = useState<AllocatorSettings>(DEFAULT_ALLOCATOR_SETTINGS);
+  const [subjects, setSubjects] = useState<ExamSubject[]>([]);
 
   // -------------------------
-  // AVAILABILITY DERIVATION
+  // AVAILABILITY (derived)
   // -------------------------
+  const availability: ExamAvailability | null = useMemo(() => {
+    if (subjects.length === 0) return null;
 
-  const availability: AvailabilitySpec | null = useMemo(() => {
-    if (exams.length === 0) {
-      return null;
-    }
-
-    const examDates = exams
-      .map((e) => e.exam_date)
+    const examDates = subjects
+      .map((s) => s.exam_date)
       .filter(Boolean)
       .sort();
 
-    if (examDates.length === 0) {
-      // No dates yet: we can still send something, but allocator really wants an end_date.
-      const today = new Date().toISOString().slice(0, 10);
-      return {
-        start_date: today,
-        end_date: today,
-        minutes_per_weekday: minutesPerWeekday,
-        rest_dates: [],
-      };
-    }
-
-    const startDate = new Date().toISOString().slice(0, 10);
-    const endDate = examDates[examDates.length - 1];
+    const today = new Date().toISOString().slice(0, 10);
+    const endDate = examDates.length > 0 ? examDates[examDates.length - 1] : today;
 
     return {
-      start_date: startDate,
+      start_date: today,
       end_date: endDate,
-      minutes_per_weekday: minutesPerWeekday,
+      minutes_per_weekday: DEFAULT_MINUTES_PER_WEEKDAY,
       rest_dates: [],
     };
-  }, [exams, minutesPerWeekday]);
+  }, [subjects]);
 
   // -------------------------
   // HELPERS
   // -------------------------
 
-  function addExam() {
-    setExams((prev) => [
+  function addSubject() {
+    setSubjects((prev) => [
       ...prev,
       {
-        subject: "",
+        name: "",
         exam_date: "",
-        hours_available: 10,
         difficulty: 3,
-        familiarity: 3,
-        priority: "medium",
-        topics: [{ name: "", difficulty: 3, familiarity: 3, priority: "medium", confidence: 3 }],
+        confidence: 3,
+        topics: [
+          {
+            name: "",
+            priority: 3,
+            familiarity: 3,
+          } as Topic,
+        ],
       },
     ]);
   }
 
-  function removeExam(index: number) {
-    setExams((prev) => prev.filter((_, i) => i !== index));
+  function removeSubject(index: number) {
+    setSubjects((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateExamField<K extends keyof ExamSpec>(
+  function updateSubjectField<K extends keyof ExamSubject>(
     index: number,
     field: K,
-    value: ExamSpec[K]
+    value: ExamSubject[K]
   ) {
-    setExams((prev) =>
-      prev.map((exam, i) => (i === index ? { ...exam, [field]: value } : exam))
+    setSubjects((prev) =>
+      prev.map((subj, i) => (i === index ? { ...subj, [field]: value } : subj))
     );
   }
 
-  function addTopic(examIndex: number) {
-    setExams((prev) =>
-      prev.map((exam, i) =>
-        i === examIndex
+  function addTopic(subjectIndex: number) {
+    setSubjects((prev) =>
+      prev.map((subj, i) =>
+        i === subjectIndex
           ? {
-              ...exam,
+              ...subj,
               topics: [
-                ...exam.topics,
-                {
-                  name: "",
-                  difficulty: 3,
-                  familiarity: 3,
-                  priority: "medium",
-                  confidence: 3,
-                } as TopicSpec,
+                ...subj.topics,
+                { name: "", priority: 3, familiarity: 3 } as Topic,
               ],
             }
-          : exam
+          : subj
       )
     );
   }
 
-  function removeTopic(examIndex: number, topicIndex: number) {
-    setExams((prev) =>
-      prev.map((exam, i) =>
-        i === examIndex
+  function removeTopic(subjectIndex: number, topicIndex: number) {
+    setSubjects((prev) =>
+      prev.map((subj, i) =>
+        i === subjectIndex
           ? {
-              ...exam,
-              topics: exam.topics.filter((_, j) => j !== topicIndex),
+              ...subj,
+              topics: subj.topics.filter((_, j) => j !== topicIndex),
             }
-          : exam
+          : subj
       )
     );
   }
 
-  function updateTopicField<K extends keyof TopicSpec>(
-    examIndex: number,
+  function updateTopicField<K extends keyof Topic>(
+    subjectIndex: number,
     topicIndex: number,
     field: K,
-    value: TopicSpec[K]
+    value: Topic[K]
   ) {
-    setExams((prev) =>
-      prev.map((exam, i) =>
-        i === examIndex
+    setSubjects((prev) =>
+      prev.map((subj, i) =>
+        i === subjectIndex
           ? {
-              ...exam,
-              topics: exam.topics.map((t, j) =>
+              ...subj,
+              topics: subj.topics.map((t, j) =>
                 j === topicIndex ? { ...t, [field]: value } : t
               ),
             }
-          : exam
+          : subj
       )
     );
   }
@@ -169,20 +139,19 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (exams.length === 0) {
-      alert("Please add at least one exam before generating a plan.");
+    if (subjects.length === 0) {
+      alert("Please add at least one subject.");
       return;
     }
 
     if (!availability) {
-      alert("Please set at least one exam date before generating a plan.");
+      alert("Please set at least one exam date.");
       return;
     }
 
-    const payload: ExamPlanRequestV2 = {
-      exams,
+    const payload: ExamPlanRequest = {
+      subjects,
       availability,
-      settings,
     };
 
     onGenerate(payload);
@@ -194,93 +163,78 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {exams.map((exam, examIndex) => (
-        <div key={examIndex} className="border rounded p-4 space-y-3">
+      {subjects.map((subject, subjectIndex) => (
+        <div key={subjectIndex} className="border rounded p-4 space-y-3">
           <div className="flex justify-between items-center">
-            <h3 className="font-semibold">Exam {examIndex + 1}</h3>
+            <h3 className="font-semibold">Subject {subjectIndex + 1}</h3>
             <button
               type="button"
-              onClick={() => removeExam(examIndex)}
+              onClick={() => removeSubject(subjectIndex)}
               className="text-sm text-red-600"
             >
-              Delete exam
+              Delete subject
             </button>
           </div>
 
-          {/* Subject */}
+          {/* Name */}
           <input
             type="text"
-            value={exam.subject}
-            onChange={(e) => updateExamField(examIndex, "subject", e.target.value)}
+            value={subject.name}
+            onChange={(e) =>
+              updateSubjectField(subjectIndex, "name", e.target.value)
+            }
             className="w-full border rounded px-2 py-1"
-            placeholder="Subject"
+            placeholder="Subject name"
           />
 
           {/* Exam date */}
           <label className="text-sm font-medium block">Exam date</label>
           <input
             type="date"
-            value={exam.exam_date}
-            onChange={(e) => updateExamField(examIndex, "exam_date", e.target.value)}
-            className="w-full border rounded px-2 py-1"
-          />
-
-          {/* Hours available */}
-          <label className="text-sm font-medium block">Total hours available for this exam</label>
-          <input
-            type="number"
-            min={1}
-            value={exam.hours_available}
+            value={subject.exam_date}
             onChange={(e) =>
-              updateExamField(examIndex, "hours_available", Number(e.target.value) || 0)
+              updateSubjectField(subjectIndex, "exam_date", e.target.value)
             }
             className="w-full border rounded px-2 py-1"
-            placeholder="e.g. 20"
           />
 
           {/* Difficulty */}
           <label className="text-sm font-medium block">
-            Difficulty ({exam.difficulty})
+            Difficulty ({subject.difficulty})
           </label>
           <input
             type="range"
             min={1}
             max={5}
-            value={exam.difficulty}
+            value={subject.difficulty}
             onChange={(e) =>
-              updateExamField(examIndex, "difficulty", Number(e.target.value))
+              updateSubjectField(
+                subjectIndex,
+                "difficulty",
+                Number(e.target.value)
+              )
             }
             className="w-full"
           />
 
-          {/* Familiarity */}
+          {/* Confidence */}
           <label className="text-sm font-medium block">
-            Familiarity ({exam.familiarity})
+            Confidence ({subject.confidence})
           </label>
           <input
             type="range"
             min={1}
             max={5}
-            value={exam.familiarity}
+            value={subject.confidence}
             onChange={(e) =>
-              updateExamField(examIndex, "familiarity", Number(e.target.value))
+              updateSubjectField(
+                subjectIndex,
+                "confidence",
+                Number(e.target.value)
+              )
             }
             className="w-full"
           />
-
-          {/* Priority */}
-          <label className="text-sm font-medium block">Priority</label>
-          <select
-            value={exam.priority}
-            onChange={(e) => updateExamField(examIndex, "priority", e.target.value)}
-            className="w-full border rounded px-2 py-1"
-          >
-            {PRIORITY_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt[0].toUpperCase() + opt.slice(1)}
-              </option>
-            ))}
-          </select>
 
           {/* Topics */}
           <div className="space-y-2">
@@ -288,28 +242,33 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
               <span className="font-medium text-sm">Topics</span>
               <button
                 type="button"
-                onClick={() => addTopic(examIndex)}
+                onClick={() => addTopic(subjectIndex)}
                 className="text-xs text-blue-600"
               >
                 + Add topic
               </button>
             </div>
 
-            {exam.topics.map((topic, topicIndex) => (
+            {subject.topics.map((topic, topicIndex) => (
               <div key={topicIndex} className="border rounded p-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={topic.name}
                     onChange={(e) =>
-                      updateTopicField(examIndex, topicIndex, "name", e.target.value)
+                      updateTopicField(
+                        subjectIndex,
+                        topicIndex,
+                        "name",
+                        e.target.value
+                      )
                     }
                     className="flex-1 border rounded px-2 py-1"
                     placeholder="Topic name"
                   />
                   <button
                     type="button"
-                    onClick={() => removeTopic(examIndex, topicIndex)}
+                    onClick={() => removeTopic(subjectIndex, topicIndex)}
                     className="text-xs text-red-600"
                   >
                     ✕
@@ -317,21 +276,21 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {/* Topic difficulty */}
+                  {/* Topic priority */}
                   <div>
                     <label className="text-xs font-medium">
-                      Topic difficulty ({topic.difficulty})
+                      Priority ({topic.priority})
                     </label>
                     <input
                       type="range"
                       min={1}
                       max={5}
-                      value={topic.difficulty}
+                      value={topic.priority}
                       onChange={(e) =>
                         updateTopicField(
-                          examIndex,
+                          subjectIndex,
                           topicIndex,
-                          "difficulty",
+                          "priority",
                           Number(e.target.value)
                         )
                       }
@@ -342,7 +301,7 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
                   {/* Topic familiarity */}
                   <div>
                     <label className="text-xs font-medium">
-                      Topic familiarity ({topic.familiarity})
+                      Familiarity ({topic.familiarity})
                     </label>
                     <input
                       type="range"
@@ -351,7 +310,7 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
                       value={topic.familiarity}
                       onChange={(e) =>
                         updateTopicField(
-                          examIndex,
+                          subjectIndex,
                           topicIndex,
                           "familiarity",
                           Number(e.target.value)
@@ -359,51 +318,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
                       }
                       className="w-full"
                     />
-                  </div>
-
-                  {/* Topic confidence */}
-                  <div>
-                    <label className="text-xs font-medium">
-                      Topic confidence ({topic.confidence})
-                    </label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={topic.confidence}
-                      onChange={(e) =>
-                        updateTopicField(
-                          examIndex,
-                          topicIndex,
-                          "confidence",
-                          Number(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Topic priority */}
-                  <div>
-                    <label className="text-xs font-medium">Topic priority</label>
-                    <select
-                      value={topic.priority}
-                      onChange={(e) =>
-                        updateTopicField(
-                          examIndex,
-                          topicIndex,
-                          "priority",
-                          e.target.value
-                        )
-                      }
-                      className="w-full border rounded px-2 py-1 text-xs"
-                    >
-                      {PRIORITY_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt[0].toUpperCase() + opt.slice(1)}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
               </div>
@@ -414,10 +328,10 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
 
       <button
         type="button"
-        onClick={addExam}
+        onClick={addSubject}
         className="px-3 py-1 border rounded text-sm"
       >
-        + Add exam
+        + Add subject
       </button>
 
       <div>

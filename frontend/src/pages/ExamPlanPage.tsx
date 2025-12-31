@@ -4,13 +4,14 @@ import { ExamPlanForm } from "@/components/ExamPlanForm";
 import { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import type { ExamPlanRequest, ExamPlanResponse } from "@/api/types";
 
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState<any | null>(null);
+  const [plan, setPlan] = useState<ExamPlanResponse["plan"] | null>(null);
 
-  async function handleGenerate(payload: Record<string, any>) {
+  async function handleGenerate(payload: ExamPlanRequest) {
     setError(null);
     setLoading(true);
     setPlan(null);
@@ -50,17 +51,14 @@ export default function ExamPlanPage() {
 
       <div className="max-w-3xl mx-auto space-y-6">
 
-        {/* Error Box */}
         {error && (
           <div className="bg-red-100 text-red-700 p-3 rounded border border-red-300">
             {error}
           </div>
         )}
 
-        {/* Form */}
         <ExamPlanForm onGenerate={handleGenerate} loading={loading} />
 
-        {/* Empty State */}
         {!loading && !plan && (
           <div className="text-center text-gray-600 py-10">
             <h3 className="text-lg font-semibold mb-2">No exam plan yet</h3>
@@ -68,7 +66,6 @@ export default function ExamPlanPage() {
           </div>
         )}
 
-        {/* Timeline */}
         {plan && (
           <div className="mt-6">
             <ExamTimeline plan={plan} />

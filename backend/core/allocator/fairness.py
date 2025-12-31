@@ -3,62 +3,116 @@ from __future__ import annotations
 from typing import Dict, Any, List
 from collections import defaultdict
 
+
 def adjust_for_fairness(week_plan: Dict[str, Any], min_sessions_per_subject: int = 1) -> Dict[str, Any]:
     """
-    Ensure each subject appears at least min_sessions_per_subject times in the week.
-    If a subject is underrepresented, try to move small fragments from overrepresented subjects.
-    This is a best-effort, fast adjustment that preserves total minutes.
+    Ensures each subject appears at least `min_sessions_per_subject` times
+    across the entire week.
+
+    Works with the unified plan structure:
+        week_plan = {
+            "days": [
+                {
+                    "date": "...",
+                    "blocks": [
+                        {
+                            "minutes": int,
+                            "subjects": [
+                                {"id": str, "name": str, "minutes": int, "topic": {...}, "difficulty": int}
+                            ]
+                        }
+                    ],
+                    "total_minutes": int
+                }
+            ]
+        }
+
+    Strategy:
+      1. Count how many times each subject appears.
+      2. Identify underrepresented subjects.
+      3. Identify donors (subjects with extra appearances).
+      4. Move 20-minute fragments from donors to underrepresented subjects.
+      5. Recompute totals.
     """
-    # Count appearances
+
+    days = week_plan.get("days", [])
+    if not days:
+        return week_plan
+
+    # ---------------------------------------------------------
+    # 1. Count subject appearances and minutes
+    # ---------------------------------------------------------
     counts = defaultdict(int)
     subject_minutes = defaultdict(int)
-    for day in week_plan.get("days", []):
+
+    for day in days:
         for block in day.get("blocks", []):
             for s in block.get("subjects", []):
-                sid = s.get("id")
+                sid = s["id"]
                 counts[sid] += 1
-                subject_minutes[sid] += s.get("minutes", 0)
+                subject_minutes[sid] += s["minutes"]
 
-    # Identify underrepresented subjects
+    # ---------------------------------------------------------
+    # 2. Identify underrepresented subjects
+    # ---------------------------------------------------------
     under = [sid for sid, c in counts.items() if c < min_sessions_per_subject]
     if not under:
         return week_plan
 
-    # Identify donors (subjects with > min_sessions)
+    # ---------------------------------------------------------
+    # 3. Identify donors (subjects with > min_sessions)
+    # ---------------------------------------------------------
     donors = [sid for sid, c in counts.items() if c > min_sessions_per_subject]
     if not donors:
         return week_plan
 
-    # For each under subject, try to steal small minutes from donors and insert a small session on a low-load day
+    # ---------------------------------------------------------
+    # 4. For each underrepresented subject, try to steal 20 minutes
+    # ---------------------------------------------------------
     for target in under:
-        needed = 1 - counts.get(target, 0)
-        # find a day with smallest total_minutes
-        days_sorted = sorted(week_plan.get("days", []), key=lambda d: d.get("total_minutes", 0))
-        for d in days_sorted:
+        needed = min_sessions_per_subject - counts.get(target, 0)
+
+        # Sort days by total load (lightest first)
+        days_sorted = sorted(days, key=lambda d: d.get("total_minutes", 0))
+
+        for day in days_sorted:
             if needed <= 0:
                 break
-            # find a donor subject in some block with a small fragment to split
-            found = False
-            for block in d.get("blocks", []):
-                for donor in donors:
-                    for subj in block.get("subjects", []):
-                        if subj.get("id") == donor and subj.get("minutes", 0) >= 20:
-                            # split 20 minutes off
-                            split = 20
-                            subj["minutes"] -= split
-                            # insert new subject fragment for target
-                            block["subjects"].append({"id": target, "minutes": split, "topic": {"name": "Fairness insert"}})
-                            counts[target] += 1
-                            subject_minutes[target] += split
-                            subject_minutes[donor] -= split
-                            needed -= 1
-                            found = True
-                            break
-                    if found:
+
+            for block in day.get("blocks", []):
+                # Try to find a donor subject with >= 20 minutes
+                for subj in block.get("subjects", []):
+                    donor_id = subj["id"]
+                    if donor_id in donors and subj["minutes"] >= 20:
+                        # Split 20 minutes
+                        split = 20
+                        subj["minutes"] -= split
+
+                        # Insert new subject fragment
+                        block["subjects"].append({
+                            "id": target,
+                            "name": f"Subject {target}",
+                            "minutes": split,
+                            "topic": {"id": None, "name": "Fairness insert"},
+                            "difficulty": 1
+                        })
+
+                        counts[target] += 1
+                        subject_minutes[target] += split
+                        subject_minutes[donor_id] -= split
+                        needed -= 1
                         break
-                if found:
+
+                if needed <= 0:
                     break
-    # Recompute totals
-    for d in week_plan.get("days", []):
-        d["total_minutes"] = sum(sum(s["minutes"] for s in b.get("subjects", [])) for b in d.get("blocks", []))
+
+    # ---------------------------------------------------------
+    # 5. Recompute total_minutes for each day
+    # ---------------------------------------------------------
+    for day in days:
+        day["total_minutes"] = sum(
+            sum(s["minutes"] for s in block.get("subjects", []))
+            for block in day.get("blocks", [])
+        )
+
     return week_plan

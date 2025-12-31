@@ -1,53 +1,47 @@
-from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
 
 
 # ============================================================
-# SHARED MODELS
+# SHARED MODELS (unified schema)
 # ============================================================
 
 class TopicModel(BaseModel):
     id: Optional[str] = None
     name: str
-    difficulty: Optional[int] = Field(default=3, ge=1, le=5)
-    familiarity: Optional[int] = Field(default=3, ge=1, le=5)
-    priority: Optional[str] = Field(default="medium")   # "low", "medium", "high"
-    confidence: Optional[int] = Field(default=3, ge=1, le=5)
+    priority: int = Field(default=3, ge=1, le=5)
+    familiarity: int = Field(default=3, ge=1, le=5)
 
 
-class SettingsModel(BaseModel):
-    daily_study_limit_hours: Optional[int] = 4
-    max_session_length_minutes: Optional[int] = 50
-    break_length_minutes: Optional[int] = 10
-    cognitive_load_sensitivity: Optional[int] = Field(default=3, ge=1, le=5)
-    auto_rebalance: Optional[bool] = True
-
-
-class AvailabilityModel(BaseModel):
+class ExamAvailabilityModel(BaseModel):
     minutes_per_weekday: Dict[str, int]
-    rest_days: Optional[List[str]] = []
-    start_date: Optional[str] = None   # "YYYY-MM-DD"
+    rest_dates: List[str] = []
+    start_date: str  # "YYYY-MM-DD"
+    end_date: str    # "YYYY-MM-DD"
+
+
+class WeeklyAvailabilityModel(BaseModel):
+    minutes_per_weekday: Dict[str, int]
+    rest_dates: List[str] = []
+    start_date: str  # "YYYY-MM-DD"
 
 
 # ============================================================
-# EXAM PLAN (V2)
+# EXAM PLAN (unified)
 # ============================================================
 
 class ExamSubjectModel(BaseModel):
     id: Optional[str] = None
-    subject: str
+    name: str
     exam_date: str
-    hours_available: int
-    difficulty: Optional[int] = Field(default=3, ge=1, le=5)
-    familiarity: Optional[int] = Field(default=3, ge=1, le=5)
-    priority: Optional[str] = Field(default="medium")
+    difficulty: int = Field(default=3, ge=1, le=5)
+    confidence: int = Field(default=3, ge=1, le=5)
     topics: List[TopicModel] = []
 
 
-class ExamPlanRequestV2(BaseModel):
-    exams: List[ExamSubjectModel]
-    availability: AvailabilityModel
-    settings: Optional[SettingsModel] = None
+class ExamPlanRequest(BaseModel):
+    subjects: List[ExamSubjectModel]
+    availability: ExamAvailabilityModel
 
 
 class ExamPlanResponse(BaseModel):
@@ -55,39 +49,22 @@ class ExamPlanResponse(BaseModel):
 
 
 # ============================================================
-# WEEKLY PLAN (V2)
+# WEEKLY PLAN (unified)
 # ============================================================
 
 class WeeklySubjectModel(BaseModel):
     id: Optional[str] = None
     name: str
-    hours_per_week: int
-    difficulty: Optional[int] = Field(default=3, ge=1, le=5)
-    familiarity: Optional[int] = Field(default=3, ge=1, le=5)
-    priority: Optional[str] = Field(default="medium")
+    difficulty: int = Field(default=3, ge=1, le=5)
+    confidence: int = Field(default=3, ge=1, le=5)
     topics: List[TopicModel] = []
 
 
-class WeeklyPlanRequestV2(BaseModel):
-    weekly_subjects: List[WeeklySubjectModel]
-    availability: AvailabilityModel
-    settings: Optional[SettingsModel] = None
+class WeeklyPlanRequest(BaseModel):
+    subjects: List[WeeklySubjectModel]
+    weekly_hours: float
+    availability: WeeklyAvailabilityModel
 
 
 class WeeklyPlanResponse(BaseModel):
     plan: Dict[str, Any]
-
-
-# ============================================================
-# BACKWARD COMPATIBILITY (V1)
-# ============================================================
-
-class WeeklyPlanRequest(BaseModel):
-    subjects: List[str]
-    hours_per_day: int
-
-
-class ExamPlanRequest(BaseModel):
-    topics: List[str]
-    exam_date: str
-    hours_available: int

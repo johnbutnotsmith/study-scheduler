@@ -1,15 +1,47 @@
 """
-Exam allocator
+Exam allocator (v2, unified schema)
 
 Generates a multi-exam, multi-subject, deadline-driven study plan.
 
 Public API:
-    generate_exam_plan(exams, availability, settings=None) -> dict
+    generate_exam_plan(subjects, availability) -> dict
 
 Conventions:
     - All dates in ISO format: "YYYY-MM-DD"
     - All durations in minutes
     - Input is Python dicts (API layer will validate JSON)
+
+Input schema (exam mode):
+
+{
+    "mode": "exam",
+    "subjects": [
+        {
+            "id": "chem_1",
+            "name": "Chemistry",
+            "difficulty": 4,
+            "confidence": 1,
+            "exam_date": "2026-01-26",
+            "topics": [
+                { "id": "t1", "name": "Air and water", "priority": 3, "familiarity": 3 }
+            ]
+        }
+    ],
+    "availability": {
+        "minutes_per_weekday": {
+            "Monday": 240,
+            "Tuesday": 240,
+            "Wednesday": 240,
+            "Thursday": 240,
+            "Friday": 240,
+            "Saturday": 360,
+            "Sunday": 0
+        },
+        "rest_dates": ["2026-01-01"],
+        "start_date": "2025-12-29",
+        "end_date": "2026-01-26"
+    }
+}
 """
 
 from __future__ import annotations
@@ -18,51 +50,34 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional
 
-# These modules will live in the same core/allocator or core/engine package.
-# For now, we assume the following functions exist and are imported correctly:
-#
-#   from .cognitive_load import validate_day_plan
-#   from .fairness import adjust_for_fairness
-#   from ..engine.topic_rotation import pick_next_topic
-#
-# You can stub them initially and implement later.
-try:
-    from .cognitive_load import validate_day_plan  # type: ignore
-except ImportError:
-    def validate_day_plan(day_plan: Dict[str, Any]) -> Dict[str, Any]:
-        # Temporary no-op fallback
-        return day_plan
-
-try:
-    from .fairness import adjust_for_fairness  # type: ignore
-except ImportError:
-    def adjust_for_fairness(weekly_or_global_plan: Dict[str, Any]) -> Dict[str, Any]:
-        # Temporary no-op fallback
-        return weekly_or_global_plan
-
-try:
-    from ..engine.topic_rotation import pick_next_topic  # type: ignore
-except ImportError:
-    def pick_next_topic(subject_name: str, topics: List[Dict[str, Any]], state: Dict[str, Any]) -> Dict[str, Any]:
-        # Simple round-robin fallback
-        index = state.get(subject_name, 0)
-        if not topics:
-            return {"name": "General review", "id": None}
-        topic = topics[index % len(topics)]
-        state[subject_name] = (index + 1) % len(topics)
-        return topic
+from .cognitive_load import validate_day_plan
+from .fairness import adjust_for_fairness
+from ..engine.topic_rotation import pick_next_topic
 
 
 # ---------- Data structures ----------
 
 @dataclass
-class Exam:
+class ExamSubject:
+    """
+    Unified exam subject model for the allocator.
+
+    Maps from unified input subject:
+        {
+            "id": "chem_1",
+            "name": "Chemistry",
+            "difficulty": 4,
+            "confidence": 1,
+            "exam_date": "2026-01-26",
+            "topics": [...]
+        }
+    """
     id: str
-    subject: str
+    name: str
     exam_date: date
     difficulty: int          # 1–5
-    familiarity: int         # 1–5 (higher = more familiar)
-    topics: List[Dict[str, Any]]  # list of topic dicts (id, name, etc.)
+    confidence: int          # 1–5 (higher = more confident)
+    topics: List[Dict[str, Any]]  # list of topic dicts (id, name, priority, familiarity)
 
 
 @dataclass
@@ -75,31 +90,69 @@ class Availability:
 
 @dataclass
 class AllocatorSettings:
-    max_daily_minutes: Optional[int] = None
+    """
+    Internal-only settings; not exposed to the user.
+    """
     difficulty_weight: float = 0.5
-    unfamiliarity_weight: float = 0.3
+    confidence_weight: float = 0.3   # low confidence → more time
     urgency_weight: float = 0.2
+
+
+DEFAULT_SETTINGS = AllocatorSettings()
 
 
 # ---------- Public API ----------
 
 def generate_exam_plan(
-    exams: List[Dict[str, Any]],
+    subjects: List[Dict[str, Any]],
     availability: Dict[str, Any],
-    settings: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
+    """
+    Generate a deadline-driven exam plan based on the unified schema.
 
-    if not exams:
+    Args:
+        subjects: list of subject dicts (unified exam-mode subjects).
+        availability: unified availability dict.
+
+    Returns:
+        {
+            "days": [
+                {
+                    "date": "2025-12-29",
+                    "total_minutes": 180,
+                    "blocks": [
+                        {
+                            "minutes": 90,
+                            "subjects": [
+                                {
+                                    "id": "chem_1",
+                                    "name": "Chemistry",
+                                    "minutes": 90,
+                                    "topic": {...},
+                                    "difficulty": 4
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    """
+    if not subjects:
         return {"days": []}
 
-    exams_model = _parse_exams(exams)
+    exams_model = _parse_subjects_as_exams(subjects)
     availability_model = _parse_availability(availability)
-    settings_model = _parse_settings(settings)
 
     calendar_days = _build_calendar_days(availability_model)
 
-    weights = _compute_exam_weights(exams_model, availability_model, settings_model)
-    minutes_per_exam = _allocate_minutes_per_exam(calendar_days, weights, settings_model)
+    if not calendar_days:
+        return {"days": []}
+
+    settings = DEFAULT_SETTINGS
+
+    weights = _compute_exam_weights(exams_model, availability_model, settings)
+    minutes_per_exam = _allocate_minutes_per_exam(calendar_days, weights)
 
     raw_plan = _distribute_minutes_into_days(
         calendar_days,
@@ -110,13 +163,8 @@ def generate_exam_plan(
     fair_plan = adjust_for_fairness(raw_plan)
 
     final_days = []
-    for day in fair_plan["days"]:
+    for day in fair_plan.get("days", []):
         validated = validate_day_plan(day)
-
-        # FINAL FIX: authoritative recomputation of total_minutes
-        blocks = validated.get("blocks", [])
-        validated["total_minutes"] = sum(b.get("minutes", 0) for b in blocks)
-
         final_days.append(validated)
 
     return {"days": final_days}
@@ -124,18 +172,18 @@ def generate_exam_plan(
 
 # ---------- Parsing ----------
 
-def _parse_exams(exams: List[Dict[str, Any]]) -> List[Exam]:
-    parsed: List[Exam] = []
-    for e in exams:
-        exam_date = _parse_date(e["exam_date"])
-        topics = e.get("topics", [])
+def _parse_subjects_as_exams(subjects: List[Dict[str, Any]]) -> List[ExamSubject]:
+    parsed: List[ExamSubject] = []
+    for s in subjects:
+        exam_date = _parse_date(s["exam_date"])
+        topics = s.get("topics", [])
         parsed.append(
-            Exam(
-                id=str(e["id"]),
-                subject=str(e["subject"]),
+            ExamSubject(
+                id=str(s["id"]),
+                name=str(s["name"]),
                 exam_date=exam_date,
-                difficulty=int(e["difficulty"]),
-                familiarity=int(e["familiarity"]),
+                difficulty=int(s["difficulty"]),
+                confidence=int(s["confidence"]),
                 topics=topics,
             )
         )
@@ -157,17 +205,6 @@ def _parse_availability(data: Dict[str, Any]) -> Availability:
     )
 
 
-def _parse_settings(data: Optional[Dict[str, Any]]) -> AllocatorSettings:
-    if data is None:
-        return AllocatorSettings()
-    return AllocatorSettings(
-        max_daily_minutes=data.get("max_daily_minutes"),
-        difficulty_weight=data.get("difficulty_weight", 0.5),
-        unfamiliarity_weight=data.get("unfamiliarity_weight", 0.3),
-        urgency_weight=data.get("urgency_weight", 0.2),
-    )
-
-
 def _parse_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
 
@@ -175,8 +212,13 @@ def _parse_date(value: str) -> date:
 # ---------- Calendar ----------
 
 def _build_calendar_days(avail: Availability) -> List[Dict[str, Any]]:
+    """
+    Build the list of usable days between start_date and end_date,
+    skipping rest_dates and weekdays with 0 available minutes.
+    """
     days: List[Dict[str, Any]] = []
     current = avail.start_date
+
     while current <= avail.end_date:
         if current in avail.rest_dates:
             current += timedelta(days=1)
@@ -184,6 +226,8 @@ def _build_calendar_days(avail: Availability) -> List[Dict[str, Any]]:
 
         weekday_name = current.strftime("%A")
         minutes = avail.minutes_per_weekday.get(weekday_name, 0)
+
+        # 0 minutes = implicit recurring rest day for that weekday
         if minutes <= 0:
             current += timedelta(days=1)
             continue
@@ -196,17 +240,23 @@ def _build_calendar_days(avail: Availability) -> List[Dict[str, Any]]:
             }
         )
         current += timedelta(days=1)
+
     return days
 
 
 # ---------- Weighting ----------
 
 def _compute_exam_weights(
-    exams: List[Exam],
+    exams: List[ExamSubject],
     avail: Availability,
     settings: AllocatorSettings
 ) -> Dict[str, float]:
-
+    """
+    Compute a weight for each exam based on:
+      - difficulty (harder → more time)
+      - confidence (lower confidence → more time)
+      - urgency (closer exam date → more time)
+    """
     today = avail.start_date
     weights: Dict[str, float] = {}
 
@@ -214,14 +264,16 @@ def _compute_exam_weights(
         days_until = max((e.exam_date - today).days, 1)
 
         difficulty_score = e.difficulty / 5.0
-        unfamiliarity_score = (6 - e.familiarity) / 5.0
+        # low confidence → high "need"
+        confidence_need = (6 - e.confidence) / 5.0
         urgency_score = 1.0 / days_until
 
         weight = (
             settings.difficulty_weight * difficulty_score
-            + settings.unfamiliarity_weight * unfamiliarity_score
+            + settings.confidence_weight * confidence_need
             + settings.urgency_weight * urgency_score
         )
+
         weights[e.id] = max(weight, 0.0001)
 
     return weights
@@ -230,9 +282,10 @@ def _compute_exam_weights(
 def _allocate_minutes_per_exam(
     calendar_days: List[Dict[str, Any]],
     weights: Dict[str, float],
-    settings: AllocatorSettings
 ) -> Dict[str, int]:
-
+    """
+    Allocate the total available minutes across exams based on their weights.
+    """
     total_available = sum(d["available_minutes"] for d in calendar_days)
     total_weight = sum(weights.values())
 
@@ -252,12 +305,43 @@ def _allocate_minutes_per_exam(
 
 def _distribute_minutes_into_days(
     calendar_days: List[Dict[str, Any]],
-    exams: List[Exam],
+    exams: List[ExamSubject],
     minutes_per_exam: Dict[str, int]
 ) -> Dict[str, Any]:
+    """
+    Distribute each exam's allocated minutes into daily blocks,
+    respecting daily availability and exam urgency.
 
+    Produces the unified plan structure:
+        {
+            "days": [
+                {
+                    "date": "YYYY-MM-DD",
+                    "total_minutes": int,
+                    "blocks": [
+                        {
+                            "minutes": int,
+                            "subjects": [
+                                {
+                                    "id": str,
+                                    "name": str,
+                                    "minutes": int,
+                                    "topic": {...},
+                                    "difficulty": int
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    """
+    # Sort exams by exam_date (nearest first)
     exams_sorted = sorted(exams, key=lambda e: e.exam_date)
-    topic_state: Dict[str, int] = {}
+
+    # Topic state for spaced-repetition topic selection
+    topic_state: Dict[str, Dict[str, Any]] = {}
+
     days_output: List[Dict[str, Any]] = []
     remaining = dict(minutes_per_exam)
 
@@ -268,6 +352,7 @@ def _distribute_minutes_into_days(
         if available <= 0:
             continue
 
+        # Exams sorted by urgency relative to this day
         exams_by_urgency = sorted(
             exams_sorted,
             key=lambda e: max((e.exam_date - day_date).days, 0)
@@ -276,6 +361,7 @@ def _distribute_minutes_into_days(
         day_blocks: List[Dict[str, Any]] = []
 
         while available > 0:
+            # Stop if all exams exhausted
             if all(remaining.get(e.id, 0) <= 0 for e in exams_by_urgency):
                 break
 
@@ -291,19 +377,25 @@ def _distribute_minutes_into_days(
                 if block_minutes <= 0:
                     continue
 
+                # Use minimal spaced-repetition topic rotation
                 topic = pick_next_topic(
-                    exam.subject,
-                    exam.topics,
-                    topic_state
+                    subject_id=exam.id,       # use exam id as subject key in state
+                    topics=exam.topics,
+                    state=topic_state,
+                    current_date=day_date
                 )
 
                 block = {
-                    "start": None,
-                    "end": None,
-                    "subject": exam.subject,
-                    "exam_id": exam.id,
-                    "topic": topic,
                     "minutes": block_minutes,
+                    "subjects": [
+                        {
+                            "id": exam.id,
+                            "name": exam.name,
+                            "minutes": block_minutes,
+                            "topic": topic,
+                            "difficulty": exam.difficulty,
+                        }
+                    ],
                 }
                 day_blocks.append(block)
 
@@ -315,13 +407,17 @@ def _distribute_minutes_into_days(
                     break
 
             if not progress_made:
+                # Cannot allocate more time meaningfully
                 break
 
         if day_blocks:
             days_output.append(
                 {
                     "date": day_date.isoformat(),
-                    "total_minutes": sum(b["minutes"] for b in day_blocks),
+                    "total_minutes": sum(
+                        sum(s["minutes"] for s in block["subjects"])
+                        for block in day_blocks
+                    ),
                     "blocks": day_blocks,
                 }
             )
@@ -330,11 +426,14 @@ def _distribute_minutes_into_days(
 
 
 def _decide_block_length(
-    exam: Exam,
+    exam: ExamSubject,
     remaining_for_exam: int,
     remaining_for_day: int
 ) -> int:
-
+    """
+    Decide a single block length for this exam on this day
+    based on exam difficulty and remaining minutes.
+    """
     if exam.difficulty >= 4:
         preferred = 75
     elif exam.difficulty == 3:
@@ -347,6 +446,7 @@ def _decide_block_length(
     if block <= 0:
         return 0
 
+    # allow small tail fragments rather than dropping them
     if block < 25:
         return block
 

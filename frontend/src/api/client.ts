@@ -1,6 +1,14 @@
+import type {
+  ExamPlanRequest,
+  ExamPlanResponse,
+  WeeklyPlanRequest,
+  WeeklyPlanResponse,
+  ApiResult,
+} from "./types";
+
 const BASE_URL = "https://study-scheduler-mtqq.onrender.com";
 
-async function request(path: string, payload: any) {
+async function request<T>(path: string, payload: unknown): Promise<ApiResult<T>> {
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       method: "POST",
@@ -8,7 +16,6 @@ async function request(path: string, payload: any) {
       body: JSON.stringify(payload),
     });
 
-    // Try to parse JSON even on error
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
@@ -27,11 +34,10 @@ async function request(path: string, payload: any) {
   }
 }
 
-// V2 endpoints (backend is now V2-only)
-export async function generateWeeklyPlan(payload: any) {
-  return request("/weekly/generate", payload);
+export function generateExamPlan(payload: ExamPlanRequest) {
+  return request<ExamPlanResponse>("/exam/generate", payload);
 }
 
-export async function generateExamPlan(payload: any) {
-  return request("/exam/generate", payload);
+export function generateWeeklyPlan(payload: WeeklyPlanRequest) {
+  return request<WeeklyPlanResponse>("/weekly/generate", payload);
 }

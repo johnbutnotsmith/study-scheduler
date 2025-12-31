@@ -1,32 +1,26 @@
-
-interface SubjectEntry {
-  id: string;
-  name: string;
-  minutes: number;
-  topic: { name: string; id: string | null };
+interface WeeklyTimelineProps {
+  plan: {
+    week_start: string;
+    days: Array<{
+      date: string;
+      weekday: string;
+      total_minutes: number;
+      blocks: Array<{
+        type: string;
+        minutes: number;
+        start: string;
+        end: string;
+        subjects: Array<{
+          id: string | null;
+          name: string;
+          minutes: number;
+          topic: { name: string; id: string | null };
+        }>;
+      }>;
+    }>;
+  };
 }
 
-interface Block {
-  type: string;
-  minutes: number;
-  start: string;
-  end: string;
-  subjects: SubjectEntry[];
-}
-
-interface DayPlan {
-  date: string;
-  weekday: string;
-  total_minutes: number;
-  blocks: Block[];
-}
-
-interface WeeklyPlan {
-  week_start: string;
-  days: DayPlan[];
-}
-
-// Color palette for subjects
 const SUBJECT_COLORS: Record<string, string> = {
   math: "bg-blue-100 border-blue-500",
   biology: "bg-green-100 border-green-500",
@@ -36,12 +30,11 @@ const SUBJECT_COLORS: Record<string, string> = {
   english: "bg-pink-100 border-pink-500",
 };
 
-// Fallback for unknown subjects
 function getColorClass(subjectName: string) {
   return SUBJECT_COLORS[subjectName.toLowerCase()] || "bg-gray-100 border-gray-400";
 }
 
-export default function WeeklyTimeline({ plan }: { plan: WeeklyPlan }) {
+export default function WeeklyTimeline({ plan }: WeeklyTimelineProps) {
   if (!plan || !plan.days) return null;
 
   return (
@@ -69,7 +62,6 @@ export default function WeeklyTimeline({ plan }: { plan: WeeklyPlan }) {
                 key={idx}
                 className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded"
               >
-                {/* Time + metadata */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                   <span className="font-semibold text-gray-700">
                     {block.start} → {block.end}
@@ -80,7 +72,6 @@ export default function WeeklyTimeline({ plan }: { plan: WeeklyPlan }) {
                   </span>
                 </div>
 
-                {/* Subjects */}
                 <ul className="mt-3 space-y-2">
                   {block.subjects.map((subj, sidx) => (
                     <li
