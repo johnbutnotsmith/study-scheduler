@@ -17,5 +17,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def root():
+    return {"status": "backend running"}
+
 app.include_router(weekly_router)
 app.include_router(exam_router)
