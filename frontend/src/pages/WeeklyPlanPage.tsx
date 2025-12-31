@@ -4,6 +4,7 @@ import { WeeklyPlanForm } from "@/components/WeeklyPlanForm";
 import { generateWeeklyPlan } from "@/api/client";
 import WeeklyTimeline from "@/components/WeeklyTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import type { WeeklyPlanRequest } from "@/api/types";
 
 export default function WeeklyPlanPage() {
   const [error, setError] = useState<string | null>(null);
