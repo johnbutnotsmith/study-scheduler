@@ -8,7 +8,10 @@ app = FastAPI(title="Study Scheduler API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # allow Vercel + localhost
+    allow_origins=[
+        "https://study-scheduler-nine.vercel.app",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
