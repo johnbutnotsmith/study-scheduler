@@ -45,6 +45,7 @@ Input schema (exam mode):
 """
 
 from __future__ import annotations
+from uuid import uuid4
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -174,12 +175,30 @@ def generate_exam_plan(
 
 def _parse_subjects_as_exams(subjects: List[Dict[str, Any]]) -> List[ExamSubject]:
     parsed: List[ExamSubject] = []
+
     for s in subjects:
+        # Generate unique subject ID if missing
+        subject_id = s.get("id") or uuid4().hex
+
+        # Parse exam date
         exam_date = _parse_date(s["exam_date"])
-        topics = s.get("topics", [])
+
+        # Parse topics with safe unique IDs
+        raw_topics = s.get("topics", [])
+        topics = []
+        for t in raw_topics:
+            topic_id = t.get("id") or uuid4().hex
+            topics.append({
+                "id": str(topic_id),
+                "name": t["name"],
+                "priority": int(t["priority"]),
+                "familiarity": int(t["familiarity"]),
+            })
+
+        # Build the ExamSubject dataclass
         parsed.append(
             ExamSubject(
-                id=str(s["id"]),
+                id=str(subject_id),
                 name=str(s["name"]),
                 exam_date=exam_date,
                 difficulty=int(s["difficulty"]),
@@ -187,8 +206,8 @@ def _parse_subjects_as_exams(subjects: List[Dict[str, Any]]) -> List[ExamSubject
                 topics=topics,
             )
         )
-    return parsed
 
+    return parsed
 
 def _parse_availability(data: Dict[str, Any]) -> Availability:
     start = _parse_date(data["start_date"])

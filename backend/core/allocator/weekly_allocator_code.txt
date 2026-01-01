@@ -1,6 +1,6 @@
 # backend/core/allocator/weekly_allocator.py
 from __future__ import annotations
-
+from uuid import uuid4
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
@@ -116,17 +116,36 @@ def generate_weekly_plan(
 
 def _parse_subjects(subjects: List[Dict[str, Any]]) -> List[WeeklySubject]:
     out: List[WeeklySubject] = []
+
     for s in subjects:
+        # Generate unique subject ID if missing
+        subject_id = s.get("id") or uuid4().hex
+
+        # Parse topics with safe unique IDs
+        raw_topics = s.get("topics", []) or []
+        topics = []
+        for t in raw_topics:
+            topic_id = t.get("id") or uuid4().hex
+            topics.append({
+                "id": str(topic_id),
+                "name": t["name"],
+                "priority": int(t["priority"]),
+                "familiarity": int(t["familiarity"]),
+            })
+
+        # Build WeeklySubject dataclass
         out.append(
             WeeklySubject(
-                id=str(s["id"]),
+                id=str(subject_id),
                 name=str(s["name"]),
                 difficulty=int(s["difficulty"]),
                 confidence=int(s["confidence"]),
-                topics=s.get("topics", []) or []
+                topics=topics
             )
         )
+
     return out
+
 
 
 def _parse_availability(data: Dict[str, Any]) -> WeeklyAvailability:
