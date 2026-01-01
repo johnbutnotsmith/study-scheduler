@@ -4,12 +4,14 @@ interface ExamTimelineProps {
       date: string;
       total_minutes: number;
       blocks: Array<{
-        start: string | null;
-        end: string | null;
-        subject: string;
-        exam_id: string;
-        topic: { id: string | null; name: string };
         minutes: number;
+        subjects: Array<{
+          id: string | null;
+          name: string;
+          minutes: number;
+          topic: { id: string | null; name: string };
+          difficulty: number;
+        }>;
       }>;
     }>;
   };
@@ -54,28 +56,31 @@ export default function ExamTimeline({ plan }: ExamTimelineProps) {
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                   <span className="font-semibold text-gray-700">
-                    {block.start && block.end
-                      ? `${block.start} → ${block.end}`
-                      : "Flexible time"}
+                    Flexible time
                   </span>
 
                   <span className="text-sm text-gray-500">
-                    {block.minutes} min • {block.subject}
+                    {block.minutes} min
                   </span>
                 </div>
 
                 <ul className="mt-3 space-y-2">
-                  <li
-                    className={`flex flex-col sm:flex-row sm:justify-between sm:items-center border-l-4 p-2 rounded ${getColorClass(
-                      block.topic.name
-                    )}`}
-                  >
-                    <span className="font-medium">{block.topic.name}</span>
+                  {block.subjects.map((subj, sidx) => (
+                    <li
+                      key={sidx}
+                      className={`flex flex-col sm:flex-row sm:justify-between sm:items-center border-l-4 p-2 rounded ${getColorClass(
+                        subj.name
+                      )}`}
+                    >
+                      <span className="font-medium">
+                        {subj.name} — {subj.topic?.name}
+                      </span>
 
-                    <span className="text-gray-700 font-semibold sm:mt-0 mt-1">
-                      {block.minutes} min
-                    </span>
-                  </li>
+                      <span className="text-gray-700 font-semibold sm:mt-0 mt-1">
+                        {subj.minutes} min
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
