@@ -1,12 +1,12 @@
 // src/components/WeeklyPlanForm.tsx
 
-import React, { useState } from "react";
+import { useState } from "react";
 import AvailabilityInput, {
-  AvailabilityValue,
+  type AvailabilityValue,
 } from "./AvailabilityInput";
 import SubjectList, {
-  SubjectInput,
-  TopicInput,
+  type SubjectInput,
+  type TopicInput,
 } from "./SubjectList";
 import AddSubjectButton from "./AddSubjectButton";
 import type { WeeklyPlanRequest } from "../api/types";
@@ -35,7 +35,7 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       Sunday: 180,
     },
     start_date: new Date().toISOString().slice(0, 10),
-    rest_dates: [],
+    rest_dates: [], // REQUIRED
   });
 
   // -------------------------
@@ -122,7 +122,10 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
     const payload: WeeklyPlanRequest = {
       subjects,
       weekly_hours: weeklyHours,
-      availability,
+      availability: {
+        ...availability,
+        rest_dates: availability.rest_dates ?? [],
+      },
     };
 
     onGenerate(payload);
@@ -139,7 +142,9 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       <AvailabilityInput
         mode="weekly"
         value={availability}
-        onChange={setAvailability}
+        onChange={(next) =>
+          setAvailability({ ...next, rest_dates: next.rest_dates ?? [] })
+        }
       />
 
       {/* Weekly hours */}

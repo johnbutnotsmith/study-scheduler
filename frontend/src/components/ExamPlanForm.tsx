@@ -1,13 +1,13 @@
 // src/components/ExamPlanForm.tsx
 
-import React, { useState } from "react";
+import { useState } from "react";
 import AvailabilityInput, {
-  AvailabilityValue,
+  type AvailabilityValue,
 } from "./AvailabilityInput";
 import ExamDateInput from "./ExamDateInput";
 import SubjectList, {
-  SubjectInput,
-  TopicInput,
+  type SubjectInput,
+  type TopicInput,
 } from "./SubjectList";
 import AddSubjectButton from "./AddSubjectButton";
 import type { ExamPlanRequest } from "../api/types";
@@ -35,7 +35,7 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
     },
     start_date: "",
     end_date: "",
-    rest_dates: [],
+    rest_dates: [], // REQUIRED for TS compatibility
   });
 
   // -------------------------
@@ -127,12 +127,15 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
     const payload: ExamPlanRequest = {
       subjects: subjects.map((s) => ({
         name: s.name,
-        exam_date: availability.end_date, // unified exam date
+        exam_date: availability.end_date!, // guaranteed by validation
         difficulty: s.difficulty,
         confidence: s.confidence,
         topics: s.topics,
       })),
-      availability,
+      availability: {
+        ...availability,
+        rest_dates: availability.rest_dates ?? [], // ensure defined
+      },
     };
 
     onGenerate(payload);
@@ -149,14 +152,20 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       <AvailabilityInput
         mode="exam"
         value={availability}
-        onChange={setAvailability}
+        onChange={(next) =>
+          setAvailability({ ...next, rest_dates: next.rest_dates ?? [] })
+        }
       />
 
       {/* Exam date */}
       <ExamDateInput
         value={availability.end_date ?? ""}
         onChange={(date) =>
-          setAvailability((prev) => ({ ...prev, end_date: date }))
+          setAvailability((prev) => ({
+            ...prev,
+            end_date: date,
+            rest_dates: prev.rest_dates ?? [],
+          }))
         }
       />
 

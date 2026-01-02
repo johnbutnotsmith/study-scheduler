@@ -1,6 +1,6 @@
 // src/components/SubjectList.tsx
 
-import React from "react";
+
 import AddSubjectButton from "./AddSubjectButton";
 
 export interface TopicInput {
