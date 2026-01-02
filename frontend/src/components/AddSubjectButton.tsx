@@ -1,6 +1,5 @@
 // src/components/AddSubjectButton.tsx
 
-import React from "react";
 
 interface AddSubjectButtonProps {
   label?: string;

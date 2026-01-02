@@ -1,6 +1,5 @@
 // src/components/ExamDateInput.tsx
 
-import React, { useState } from "react";
 
 interface ExamDateInputProps {
   value: string;

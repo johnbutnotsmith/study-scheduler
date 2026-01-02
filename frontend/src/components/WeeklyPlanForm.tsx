@@ -6,7 +6,6 @@ import AvailabilityInput, {
 } from "./AvailabilityInput";
 import SubjectList, {
   type SubjectInput,
-  type TopicInput,
 } from "./SubjectList";
 import AddSubjectButton from "./AddSubjectButton";
 import type { WeeklyPlanRequest } from "../api/types";
@@ -14,6 +13,14 @@ import type { WeeklyPlanRequest } from "../api/types";
 interface WeeklyPlanFormProps {
   onGenerate: (payload: WeeklyPlanRequest) => void;
   loading: boolean;
+}
+
+function todayISO(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
@@ -34,8 +41,8 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       Saturday: 180,
       Sunday: 180,
     },
-    start_date: new Date().toISOString().slice(0, 10),
-    rest_dates: [], // REQUIRED
+    start_date: todayISO(),
+    rest_dates: [],
   });
 
   // -------------------------
@@ -119,13 +126,16 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       return;
     }
 
+    const normalizedAvailability = {
+      ...availability,
+      start_date: availability.start_date || todayISO(),
+      rest_dates: availability.rest_dates ?? [],
+    };
+
     const payload: WeeklyPlanRequest = {
       subjects,
       weekly_hours: weeklyHours,
-      availability: {
-        ...availability,
-        rest_dates: availability.rest_dates ?? [],
-      },
+      availability: normalizedAvailability,
     };
 
     onGenerate(payload);
@@ -137,13 +147,16 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-
       {/* Availability */}
       <AvailabilityInput
         mode="weekly"
         value={availability}
         onChange={(next) =>
-          setAvailability({ ...next, rest_dates: next.rest_dates ?? [] })
+          setAvailability({
+            ...next,
+            start_date: next.start_date || availability.start_date || todayISO(),
+            rest_dates: next.rest_dates ?? [],
+          })
         }
       />
 

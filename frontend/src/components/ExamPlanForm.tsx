@@ -7,7 +7,6 @@ import AvailabilityInput, {
 import ExamDateInput from "./ExamDateInput";
 import SubjectList, {
   type SubjectInput,
-  type TopicInput,
 } from "./SubjectList";
 import AddSubjectButton from "./AddSubjectButton";
 import type { ExamPlanRequest } from "../api/types";
@@ -15,6 +14,14 @@ import type { ExamPlanRequest } from "../api/types";
 interface ExamPlanFormProps {
   onGenerate: (payload: ExamPlanRequest) => void;
   loading: boolean;
+}
+
+function todayISO(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
@@ -33,9 +40,9 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       Saturday: 180,
       Sunday: 180,
     },
-    start_date: "",
+    start_date: todayISO(),
     end_date: "",
-    rest_dates: [], // REQUIRED for TS compatibility
+    rest_dates: [],
   });
 
   // -------------------------
@@ -124,18 +131,22 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       return;
     }
 
+    const normalizedAvailability = {
+      ...availability,
+      start_date: availability.start_date || todayISO(),
+      end_date: availability.end_date!,
+      rest_dates: availability.rest_dates ?? [],
+    };
+
     const payload: ExamPlanRequest = {
       subjects: subjects.map((s) => ({
         name: s.name,
-        exam_date: availability.end_date!, // guaranteed by validation
+        exam_date: normalizedAvailability.end_date,
         difficulty: s.difficulty,
         confidence: s.confidence,
         topics: s.topics,
       })),
-      availability: {
-        ...availability,
-        rest_dates: availability.rest_dates ?? [], // ensure defined
-      },
+      availability: normalizedAvailability,
     };
 
     onGenerate(payload);
@@ -147,13 +158,16 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-
       {/* Availability */}
       <AvailabilityInput
         mode="exam"
         value={availability}
         onChange={(next) =>
-          setAvailability({ ...next, rest_dates: next.rest_dates ?? [] })
+          setAvailability({
+            ...next,
+            start_date: next.start_date || availability.start_date || todayISO(),
+            rest_dates: next.rest_dates ?? [],
+          })
         }
       />
 

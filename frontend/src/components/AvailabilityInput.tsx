@@ -1,6 +1,5 @@
 // src/components/AvailabilityInput.tsx
 
-import React from "react";
 
 export type Weekday =
   | "Monday"
