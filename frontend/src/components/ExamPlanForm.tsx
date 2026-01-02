@@ -169,7 +169,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Availability */}
       <AvailabilityInput
-        mode="exam"
         value={availability}
         onChange={(next) =>
           setAvailability({

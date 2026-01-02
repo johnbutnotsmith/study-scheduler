@@ -158,7 +158,6 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Availability */}
       <AvailabilityInput
-        mode="weekly"
         value={availability}
         onChange={(next) =>
           setAvailability({
