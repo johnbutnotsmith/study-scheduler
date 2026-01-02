@@ -1,5 +1,6 @@
 // src/components/ExamDateInput.tsx
 
+import { useState } from "react";
 
 interface ExamDateInputProps {
   value: string;
@@ -43,6 +44,7 @@ export default function ExamDateInput({
   return (
     <div className="space-y-1">
       <label className="text-xs font-medium text-slate-800">{label}</label>
+
       <input
         type="date"
         className={[
@@ -55,7 +57,9 @@ export default function ExamDateInput({
         value={value}
         onChange={(e) => handleChange(e.target.value)}
       />
+
       <p className="text-[11px] text-slate-500">{helperText}</p>
+
       {error && (
         <p className="text-[11px] text-red-600 font-medium mt-0.5">{error}</p>
       )}
