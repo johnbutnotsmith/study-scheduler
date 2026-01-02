@@ -1,6 +1,5 @@
 // src/components/AvailabilityInput.tsx
 
-
 export type Weekday =
   | "Monday"
   | "Tuesday"
@@ -13,8 +12,7 @@ export type Weekday =
 export interface AvailabilityValue {
   minutes_per_weekday: Record<Weekday, number>;
   start_date?: string; // YYYY-MM-DD
-  end_date?: string;   // exam mode or extended weekly
-  // For now, rest_dates can be managed elsewhere; keeping this future-proof.
+  // end_date intentionally removed from UI (computed in forms)
   rest_dates?: string[]; // YYYY-MM-DD[]
 }
 
@@ -49,10 +47,10 @@ export default function AvailabilityInput({
     });
   }
 
-  function updateField(field: "start_date" | "end_date", date: string) {
+  function updateStartDate(date: string) {
     onChange({
       ...value,
-      [field]: date || undefined,
+      start_date: date || undefined,
     });
   }
 
@@ -64,6 +62,7 @@ export default function AvailabilityInput({
 
   return (
     <section className="space-y-4">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">
@@ -81,6 +80,7 @@ export default function AvailabilityInput({
         </div>
       </div>
 
+      {/* Minutes per weekday */}
       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
         {WEEKDAYS.map((day) => (
           <label
@@ -103,32 +103,17 @@ export default function AvailabilityInput({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-800">
-            Start date
-          </label>
-          <input
-            type="date"
-            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-            value={value.start_date ?? ""}
-            onChange={(e) => updateField("start_date", e.target.value)}
-          />
-        </div>
-
-        {mode === "exam" && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-800">
-              End date (last study day)
-            </label>
-            <input
-              type="date"
-              className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-              value={value.end_date ?? ""}
-              onChange={(e) => updateField("end_date", e.target.value)}
-            />
-          </div>
-        )}
+      {/* Start date only */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-slate-800">
+          Start date
+        </label>
+        <input
+          type="date"
+          className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+          value={value.start_date ?? ""}
+          onChange={(e) => updateStartDate(e.target.value)}
+        />
       </div>
     </section>
   );

@@ -1,8 +1,5 @@
 // src/components/SubjectList.tsx
 
-
-import AddSubjectButton from "./AddSubjectButton";
-
 export interface TopicInput {
   id?: string | null;
   name: string;
@@ -13,8 +10,8 @@ export interface TopicInput {
 export interface SubjectInput {
   id?: string | null;
   name: string;
-  difficulty: number; // 1–5
-  confidence: number; // 1–5
+  difficulty: number;
+  confidence: number;
   topics: TopicInput[];
 }
 
@@ -39,6 +36,7 @@ export default function SubjectList({
 }: SubjectListProps) {
   return (
     <section className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Subjects</h3>
@@ -46,11 +44,18 @@ export default function SubjectList({
             Add the subjects you want to study and their topics.
           </p>
         </div>
-        <AddSubjectButton
+
+        <button
+          type="button"
           onClick={onAddSubject}
           disabled={loading}
-          label="Add subject"
-        />
+          className="inline-flex items-center justify-center rounded-xl px-4 py-2.5
+                     text-sm font-semibold shadow-sm transition-all
+                     bg-emerald-600 text-white hover:bg-emerald-500
+                     disabled:bg-emerald-300 disabled:cursor-not-allowed"
+        >
+          + Add subject
+        </button>
       </div>
 
       {subjects.length === 0 && (
@@ -59,12 +64,14 @@ export default function SubjectList({
         </p>
       )}
 
+      {/* Subject list */}
       <div className="space-y-3">
         {subjects.map((subject, sIdx) => (
           <div
             key={subject.id ?? sIdx}
             className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 space-y-3"
           >
+            {/* Subject header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex-1 space-y-1">
                 <label className="block text-xs font-medium text-slate-800">
@@ -83,6 +90,7 @@ export default function SubjectList({
                 />
               </div>
 
+              {/* Difficulty & Confidence */}
               <div className="flex items-center justify-between gap-3 sm:w-64">
                 <div className="space-y-1">
                   <label className="text-[11px] font-medium text-slate-700">
@@ -132,6 +140,7 @@ export default function SubjectList({
               </div>
             </div>
 
+            {/* Topics */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-800">
@@ -146,12 +155,17 @@ export default function SubjectList({
                 </button>
               </div>
 
-              {subject.topics.length === 0 && (
-                <p className="text-[11px] text-slate-500 italic">
-                  No topics yet. Add a few to get more precise plans.
-                </p>
+              {/* Header row for topic fields */}
+              {subject.topics.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr_auto] gap-2 text-[11px] font-medium text-slate-700">
+                  <span>Topic name</span>
+                  <span>Priority</span>
+                  <span>Familiarity</span>
+                  <span></span>
+                </div>
               )}
 
+              {/* Topic list */}
               <div className="space-y-2">
                 {subject.topics.map((topic, tIdx) => (
                   <div
@@ -172,12 +186,12 @@ export default function SubjectList({
                         })
                       }
                     />
+
                     <input
                       type="number"
                       min={1}
                       max={5}
                       className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-                      placeholder="Priority (1–5)"
                       value={topic.priority}
                       onChange={(e) =>
                         onUpdateSubject(sIdx, {
@@ -190,12 +204,12 @@ export default function SubjectList({
                         })
                       }
                     />
+
                     <input
                       type="number"
                       min={1}
                       max={5}
                       className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
-                      placeholder="Familiarity (1–5)"
                       value={topic.familiarity}
                       onChange={(e) =>
                         onUpdateSubject(sIdx, {
@@ -211,6 +225,7 @@ export default function SubjectList({
                         })
                       }
                     />
+
                     <button
                       type="button"
                       onClick={() => onRemoveTopic(sIdx, tIdx)}

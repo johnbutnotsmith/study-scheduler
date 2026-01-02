@@ -8,7 +8,6 @@ import ExamDateInput from "./ExamDateInput";
 import SubjectList, {
   type SubjectInput,
 } from "./SubjectList";
-import AddSubjectButton from "./AddSubjectButton";
 import type { ExamPlanRequest } from "../api/types";
 
 interface ExamPlanFormProps {
@@ -24,12 +23,20 @@ function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function dayBefore(date: string): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   // -------------------------
   // STATE
   // -------------------------
 
   const [subjects, setSubjects] = useState<SubjectInput[]>([]);
+  const [examDate, setExamDate] = useState<string>("");
+
   const [availability, setAvailability] = useState<AvailabilityValue>({
     minutes_per_weekday: {
       Monday: 120,
@@ -41,7 +48,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       Sunday: 180,
     },
     start_date: todayISO(),
-    end_date: "",
     rest_dates: [],
   });
 
@@ -126,22 +132,25 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       return;
     }
 
-    if (!availability.start_date || !availability.end_date) {
-      alert("Please set your study start and exam end dates.");
+    if (!examDate) {
+      alert("Please choose an exam date.");
       return;
     }
 
+    const start = availability.start_date || todayISO();
+    const lastStudyDay = dayBefore(examDate); // correct rule
+
     const normalizedAvailability = {
       ...availability,
-      start_date: availability.start_date || todayISO(),
-      end_date: availability.end_date!,
+      start_date: start,
+      end_date: lastStudyDay,
       rest_dates: availability.rest_dates ?? [],
     };
 
     const payload: ExamPlanRequest = {
       subjects: subjects.map((s) => ({
         name: s.name,
-        exam_date: normalizedAvailability.end_date,
+        exam_date: examDate, // actual exam day
         difficulty: s.difficulty,
         confidence: s.confidence,
         topics: s.topics,
@@ -173,14 +182,8 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
 
       {/* Exam date */}
       <ExamDateInput
-        value={availability.end_date ?? ""}
-        onChange={(date) =>
-          setAvailability((prev) => ({
-            ...prev,
-            end_date: date,
-            rest_dates: prev.rest_dates ?? [],
-          }))
-        }
+        value={examDate}
+        onChange={(date) => setExamDate(date)}
       />
 
       {/* Subjects */}
@@ -193,15 +196,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
         onAddTopic={addTopic}
         onRemoveTopic={removeTopic}
       />
-
-      {/* Add subject button */}
-      <div className="pt-2">
-        <AddSubjectButton
-          onClick={addSubject}
-          disabled={loading}
-          label="Add subject"
-        />
-      </div>
 
       {/* Submit */}
       <div className="pt-4">

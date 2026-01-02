@@ -7,7 +7,6 @@ import AvailabilityInput, {
 import SubjectList, {
   type SubjectInput,
 } from "./SubjectList";
-import AddSubjectButton from "./AddSubjectButton";
 import type { WeeklyPlanRequest } from "../api/types";
 
 interface WeeklyPlanFormProps {
@@ -21,6 +20,12 @@ function todayISO(): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function computeWeeklyEndDate(start: string): string {
+  const d = new Date(start);
+  d.setDate(d.getDate() + 6);
+  return d.toISOString().slice(0, 10);
 }
 
 export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
@@ -126,9 +131,13 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       return;
     }
 
+    const start = availability.start_date || todayISO();
+    const end = computeWeeklyEndDate(start);
+
     const normalizedAvailability = {
       ...availability,
-      start_date: availability.start_date || todayISO(),
+      start_date: start,
+      end_date: end,
       rest_dates: availability.rest_dates ?? [],
     };
 
@@ -187,15 +196,6 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
         onAddTopic={addTopic}
         onRemoveTopic={removeTopic}
       />
-
-      {/* Add subject button */}
-      <div className="pt-2">
-        <AddSubjectButton
-          onClick={addSubject}
-          disabled={loading}
-          label="Add subject"
-        />
-      </div>
 
       {/* Submit */}
       <div className="pt-4">
