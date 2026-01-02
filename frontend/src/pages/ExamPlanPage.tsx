@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
+import PlanPageLayout from "@/components/PlanPageLayout";
 import { ExamPlanForm } from "@/components/ExamPlanForm";
 import { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
@@ -49,8 +50,11 @@ export default function ExamPlanPage() {
     <AppLayout>
       <LoadingOverlay isVisible={loading} />
 
-      <div className="max-w-3xl mx-auto space-y-6">
-
+      <PlanPageLayout
+        eyebrow="Study Scheduler"
+        title="Exam Study Plan"
+        subtitle="Add your subjects, define your availability, and generate a structured day‑by‑day exam plan."
+      >
         {error && (
           <div className="bg-red-100 text-red-700 p-3 rounded border border-red-300">
             {error}
@@ -71,7 +75,7 @@ export default function ExamPlanPage() {
             <ExamTimeline plan={plan} />
           </div>
         )}
-      </div>
+      </PlanPageLayout>
     </AppLayout>
   );
 }

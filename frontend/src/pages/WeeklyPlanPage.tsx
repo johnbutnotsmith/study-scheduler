@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
+import PlanPageLayout from "@/components/PlanPageLayout";
 import { WeeklyPlanForm } from "@/components/WeeklyPlanForm";
 import { generateWeeklyPlan } from "@/api/client";
 import WeeklyTimeline from "@/components/WeeklyTimeline";
@@ -49,8 +50,11 @@ export default function WeeklyPlanPage() {
     <AppLayout>
       <LoadingOverlay isVisible={loading} />
 
-      <div className="max-w-3xl mx-auto space-y-6">
-
+      <PlanPageLayout
+        eyebrow="Study Scheduler"
+        title="Weekly Study Plan"
+        subtitle="Define your weekly availability, add subjects, and generate a realistic weekly study plan."
+      >
         {error && (
           <div className="bg-red-100 text-red-700 p-3 rounded border border-red-300">
             {error}
@@ -71,7 +75,7 @@ export default function WeeklyPlanPage() {
             <WeeklyTimeline plan={plan} />
           </div>
         )}
-      </div>
+      </PlanPageLayout>
     </AppLayout>
   );
 }
