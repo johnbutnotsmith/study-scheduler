@@ -1,94 +1,78 @@
-import React, { useMemo, useState } from "react";
-import type {
-  ExamSubject,
-  Topic,
-  ExamAvailability,
-  ExamPlanRequest,
-} from "../api/types";
+// src/components/ExamPlanForm.tsx
 
-type ExamPlanFormProps = {
+import React, { useState } from "react";
+import AvailabilityInput, {
+  AvailabilityValue,
+} from "./AvailabilityInput";
+import ExamDateInput from "./ExamDateInput";
+import SubjectList, {
+  SubjectInput,
+  TopicInput,
+} from "./SubjectList";
+import AddSubjectButton from "./AddSubjectButton";
+import type { ExamPlanRequest } from "../api/types";
+
+interface ExamPlanFormProps {
   onGenerate: (payload: ExamPlanRequest) => void;
   loading: boolean;
-};
-
-const DEFAULT_MINUTES_PER_WEEKDAY: ExamAvailability["minutes_per_weekday"] = {
-  Monday: 120,
-  Tuesday: 120,
-  Wednesday: 120,
-  Thursday: 120,
-  Friday: 120,
-  Saturday: 180,
-  Sunday: 180,
-};
-
-function isValidDate(d: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(d);
 }
 
 export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
-  const [subjects, setSubjects] = useState<ExamSubject[]>([]);
+  // -------------------------
+  // STATE
+  // -------------------------
+
+  const [subjects, setSubjects] = useState<SubjectInput[]>([]);
+  const [availability, setAvailability] = useState<AvailabilityValue>({
+    minutes_per_weekday: {
+      Monday: 120,
+      Tuesday: 120,
+      Wednesday: 120,
+      Thursday: 120,
+      Friday: 120,
+      Saturday: 180,
+      Sunday: 180,
+    },
+    start_date: "",
+    end_date: "",
+    rest_dates: [],
+  });
 
   // -------------------------
-  // AVAILABILITY (derived)
-  // -------------------------
-  const availability: ExamAvailability | null = useMemo(() => {
-    if (subjects.length === 0) return null;
-
-    const validExamDates = subjects
-      .map((s) => s.exam_date)
-      .filter((d) => isValidDate(d))
-      .sort();
-
-    const today = new Date().toISOString().slice(0, 10);
-    const endDate =
-      validExamDates.length > 0
-        ? validExamDates[validExamDates.length - 1]
-        : today;
-
-    return {
-      start_date: today,
-      end_date: endDate,
-      minutes_per_weekday: DEFAULT_MINUTES_PER_WEEKDAY,
-      rest_dates: [],
-    };
-  }, [subjects]);
-
-  // -------------------------
-  // HELPERS
+  // SUBJECT HELPERS
   // -------------------------
 
   function addSubject() {
-    setSubjects((prev) => [
-      ...prev,
-      {
-        name: "",
-        exam_date: "",
-        difficulty: 3,
-        confidence: 3,
-        topics: [
-          {
-            name: "",
-            priority: 3,
-            familiarity: 3,
-          } as Topic,
-        ],
-      },
-    ]);
+    const newSubject: SubjectInput = {
+      name: "",
+      difficulty: 3,
+      confidence: 3,
+      topics: [
+        {
+          name: "",
+          priority: 3,
+          familiarity: 3,
+        },
+      ],
+    };
+
+    // PREPEND behavior
+    setSubjects((prev) => [newSubject, ...prev]);
+  }
+
+  function updateSubject(index: number, updated: SubjectInput) {
+    setSubjects((prev) =>
+      prev.map((s, i) => (i === index ? updated : s))
+    );
   }
 
   function removeSubject(index: number) {
     setSubjects((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function updateSubjectField<K extends keyof ExamSubject>(
-    index: number,
-    field: K,
-    value: ExamSubject[K]
-  ) {
-    setSubjects((prev) =>
-      prev.map((subj, i) => (i === index ? { ...subj, [field]: value } : subj))
-    );
-  }
+  // -------------------------
+  // TOPIC HELPERS
+  // -------------------------
 
   function addTopic(subjectIndex: number) {
     setSubjects((prev) =>
@@ -97,8 +81,12 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
           ? {
               ...subj,
               topics: [
-                ...subj.topics,
-                { name: "", priority: 3, familiarity: 3 } as Topic,
+                {
+                  name: "",
+                  priority: 3,
+                  familiarity: 3,
+                },
+                ...subj.topics, // PREPEND
               ],
             }
           : subj
@@ -119,26 +107,6 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
     );
   }
 
-  function updateTopicField<K extends keyof Topic>(
-    subjectIndex: number,
-    topicIndex: number,
-    field: K,
-    value: Topic[K]
-  ) {
-    setSubjects((prev) =>
-      prev.map((subj, i) =>
-        i === subjectIndex
-          ? {
-              ...subj,
-              topics: subj.topics.map((t, j) =>
-                j === topicIndex ? { ...t, [field]: value } : t
-              ),
-            }
-          : subj
-      )
-    );
-  }
-
   // -------------------------
   // SUBMIT
   // -------------------------
@@ -146,41 +114,25 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Freeze state snapshot to avoid React async timing issues
-    const currentSubjects = [...subjects];
-
-    if (currentSubjects.length === 0) {
+    if (subjects.length === 0) {
       alert("Please add at least one subject.");
       return;
     }
 
-    // Validate subjects
-    for (const subj of currentSubjects) {
-      if (!subj.name.trim()) {
-        alert("Each subject must have a name.");
-        return;
-      }
-      if (!isValidDate(subj.exam_date)) {
-        alert("Each subject must have a valid exam date.");
-        return;
-      }
-      for (const topic of subj.topics) {
-        if (!topic.name.trim()) {
-          alert("Each topic must have a name.");
-          return;
-        }
-      }
-    }
-
-    const currentAvailability = availability;
-    if (!currentAvailability) {
-      alert("Availability could not be computed.");
+    if (!availability.start_date || !availability.end_date) {
+      alert("Please set your study start and exam end dates.");
       return;
     }
 
     const payload: ExamPlanRequest = {
-      subjects: currentSubjects,
-      availability: currentAvailability,
+      subjects: subjects.map((s) => ({
+        name: s.name,
+        exam_date: availability.end_date, // unified exam date
+        difficulty: s.difficulty,
+        confidence: s.confidence,
+        topics: s.topics,
+      })),
+      availability,
     };
 
     onGenerate(payload);
@@ -191,183 +143,51 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
   // -------------------------
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {subjects.map((subject, subjectIndex) => (
-        <div key={subjectIndex} className="border rounded p-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <h3 className="font-semibold">Subject {subjectIndex + 1}</h3>
-            <button
-              type="button"
-              onClick={() => removeSubject(subjectIndex)}
-              className="text-sm text-red-600"
-            >
-              Delete subject
-            </button>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-8">
 
-          {/* Name */}
-          <input
-            type="text"
-            value={subject.name}
-            onChange={(e) =>
-              updateSubjectField(subjectIndex, "name", e.target.value)
-            }
-            className="w-full border rounded px-2 py-1"
-            placeholder="Subject name"
-          />
+      {/* Availability */}
+      <AvailabilityInput
+        mode="exam"
+        value={availability}
+        onChange={setAvailability}
+      />
 
-          {/* Exam date */}
-          <label className="text-sm font-medium block">Exam date</label>
-          <input
-            type="date"
-            value={subject.exam_date}
-            onChange={(e) =>
-              updateSubjectField(subjectIndex, "exam_date", e.target.value)
-            }
-            className="w-full border rounded px-2 py-1"
-          />
+      {/* Exam date */}
+      <ExamDateInput
+        value={availability.end_date ?? ""}
+        onChange={(date) =>
+          setAvailability((prev) => ({ ...prev, end_date: date }))
+        }
+      />
 
-          {/* Difficulty */}
-          <label className="text-sm font-medium block">
-            Difficulty ({subject.difficulty})
-          </label>
-          <input
-            type="range"
-            min={1}
-            max={5}
-            value={subject.difficulty}
-            onChange={(e) =>
-              updateSubjectField(
-                subjectIndex,
-                "difficulty",
-                Number(e.target.value)
-              )
-            }
-            className="w-full"
-          />
+      {/* Subjects */}
+      <SubjectList
+        subjects={subjects}
+        loading={loading}
+        onAddSubject={addSubject}
+        onUpdateSubject={updateSubject}
+        onRemoveSubject={removeSubject}
+        onAddTopic={addTopic}
+        onRemoveTopic={removeTopic}
+      />
 
-          {/* Confidence */}
-          <label className="text-sm font-medium block">
-            Confidence ({subject.confidence})
-          </label>
-          <input
-            type="range"
-            min={1}
-            max={5}
-            value={subject.confidence}
-            onChange={(e) =>
-              updateSubjectField(
-                subjectIndex,
-                "confidence",
-                Number(e.target.value)
-              )
-            }
-            className="w-full"
-          />
+      {/* Add subject button */}
+      <div className="pt-2">
+        <AddSubjectButton
+          onClick={addSubject}
+          disabled={loading}
+          label="Add subject"
+        />
+      </div>
 
-          {/* Topics */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-medium text-sm">Topics</span>
-              <button
-                type="button"
-                onClick={() => addTopic(subjectIndex)}
-                className="text-xs text-blue-600"
-              >
-                + Add topic
-              </button>
-            </div>
-
-            {subject.topics.map((topic, topicIndex) => (
-              <div key={topicIndex} className="border rounded p-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={topic.name}
-                    onChange={(e) =>
-                      updateTopicField(
-                        subjectIndex,
-                        topicIndex,
-                        "name",
-                        e.target.value
-                      )
-                    }
-                    className="flex-1 border rounded px-2 py-1"
-                    placeholder="Topic name"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeTopic(subjectIndex, topicIndex)}
-                    className="text-xs text-red-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-medium">
-                      Priority ({topic.priority})
-                    </label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={topic.priority}
-                      onChange={(e) =>
-                        updateTopicField(
-                          subjectIndex,
-                          topicIndex,
-                          "priority",
-                          Number(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium">
-                      Familiarity ({topic.familiarity})
-                    </label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={topic.familiarity}
-                      onChange={(e) =>
-                        updateTopicField(
-                          subjectIndex,
-                          topicIndex,
-                          "familiarity",
-                          Number(e.target.value)
-                        )
-                      }
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={addSubject}
-        className="px-3 py-1 border rounded text-sm"
-      >
-        + Add subject
-      </button>
-
-      <div>
+      {/* Submit */}
+      <div className="pt-4">
         <button
           type="submit"
           disabled={loading}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold shadow-sm hover:bg-blue-500 disabled:bg-blue-300 transition-all"
         >
-          {loading ? "Generating..." : "Generate exam plan"}
+          {loading ? "Generating…" : "Generate exam plan"}
         </button>
       </div>
     </form>
