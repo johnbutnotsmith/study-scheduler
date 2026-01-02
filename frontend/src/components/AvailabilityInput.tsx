@@ -11,13 +11,11 @@ export type Weekday =
 
 export interface AvailabilityValue {
   minutes_per_weekday: Record<Weekday, number>;
-  start_date?: string; // YYYY-MM-DD
-  // end_date intentionally removed from UI (computed in forms)
-  rest_dates?: string[]; // YYYY-MM-DD[]
+  start_date?: string;
+  rest_dates?: string[];
 }
 
 interface AvailabilityInputProps {
-  mode: "weekly" | "exam";
   value: AvailabilityValue;
   onChange: (next: AvailabilityValue) => void;
 }
@@ -33,7 +31,6 @@ const WEEKDAYS: Weekday[] = [
 ];
 
 export default function AvailabilityInput({
-  mode,
   value,
   onChange,
 }: AvailabilityInputProps) {
@@ -62,7 +59,6 @@ export default function AvailabilityInput({
 
   return (
     <section className="space-y-4">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">
@@ -80,7 +76,6 @@ export default function AvailabilityInput({
         </div>
       </div>
 
-      {/* Minutes per weekday */}
       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
         {WEEKDAYS.map((day) => (
           <label
@@ -103,7 +98,6 @@ export default function AvailabilityInput({
         ))}
       </div>
 
-      {/* Start date only */}
       <div className="space-y-1">
         <label className="text-xs font-medium text-slate-800">
           Start date
