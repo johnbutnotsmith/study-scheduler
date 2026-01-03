@@ -6,14 +6,14 @@ import { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
-import type { ExamPlanRequest } from "@/types/domain";
+import type { ExamPlanRequest, ExamPlanResponse } from "@/types/domain";
 
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState<any | null>(null);
+  const [plan, setPlan] = useState<ExamPlanResponse["plan"] | null>(null);
 
-  async function handleGenerate(payload: ExamPlanRequest) {
+  async function handleGenerate(payload: ExamPlanRequest): Promise<void> {
     setError(null);
     setLoading(true);
     setPlan(null);
@@ -56,26 +56,28 @@ export default function ExamPlanPage() {
         title="Exam Study Plan"
         subtitle="Add your subjects, define your availability, and generate a structured day‑by‑day exam plan."
       >
-        {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded border border-red-300">
-            {error}
-          </div>
-        )}
+        <div className="space-y-6">
+          {error && (
+            <div className="bg-red-100 text-red-700 p-3 rounded border border-red-300">
+              {error}
+            </div>
+          )}
 
-        <ExamPlanForm onGenerate={handleGenerate} loading={loading} />
+          <ExamPlanForm onGenerate={handleGenerate} loading={loading} />
 
-        {!loading && !plan && (
-          <div className="text-center text-gray-600 py-10">
-            <h3 className="text-lg font-semibold mb-2">No exam plan yet</h3>
-            <p>Fill the form above to generate your exam study plan.</p>
-          </div>
-        )}
+          {!loading && !plan && (
+            <div className="text-center text-gray-600 py-10">
+              <h3 className="text-lg font-semibold mb-2">No exam plan yet</h3>
+              <p>Fill the form above to generate your exam study plan.</p>
+            </div>
+          )}
 
-        {plan && (
-          <div className="mt-6">
-            <ExamTimeline plan={plan} />
-          </div>
-        )}
+          {plan && (
+            <div className="mt-6">
+              <ExamTimeline plan={plan} />
+            </div>
+          )}
+        </div>
       </PlanPageLayout>
     </AppLayout>
   );

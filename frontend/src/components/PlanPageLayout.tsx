@@ -20,6 +20,8 @@ export default function PlanPageLayout({
   headerActions,
   children,
 }: PlanPageLayoutProps) {
+  console.log("PlanPageLayout rendered");
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-50 to-slate-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
