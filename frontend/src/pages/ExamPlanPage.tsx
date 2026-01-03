@@ -13,7 +13,7 @@ export default function ExamPlanPage() {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<ExamPlanResponse["plan"] | null>(null);
 
-  async function handleGenerate(payload: ExamPlanRequest): Promise<void> {
+  async function handleGenerate({ foo: "bar" } as any): Promise<void> {
     setError(null);
     setLoading(true);
     setPlan(null);
