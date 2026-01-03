@@ -5,14 +5,15 @@ import { WeeklyPlanForm } from "@/components/WeeklyPlanForm";
 import { generateWeeklyPlan } from "@/api/client";
 import WeeklyTimeline from "@/components/WeeklyTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import type { WeeklyPlanRequest } from "@/api/types";
+
+import type { WeeklyPlanRequest, WeeklyPlanResponse } from "@/types/domain";
 
 export default function WeeklyPlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState<any | null>(null);
+  const [plan, setPlan] = useState<WeeklyPlanResponse["plan"] | null>(null);
 
-  async function handleGenerate(payload: WeeklyPlanRequest) {
+  async function handleGenerate(payload: WeeklyPlanRequest): Promise<void> {
     setError(null);
     setLoading(true);
     setPlan(null);
@@ -24,7 +25,7 @@ export default function WeeklyPlanPage() {
       try {
         const result = await generateWeeklyPlan(payload);
 
-        if (!result.ok) {
+        if (!result.ok || !result.data) {
           throw new Error(result.error || "Failed to generate weekly plan.");
         }
 
