@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AppLayout from "@/components/AppLayout";
 import LandingPage from "@/pages/LandingPage";
 import ExamPlanPage from "@/pages/ExamPlanPage";
 import WeeklyPlanPage from "@/pages/WeeklyPlanPage";
