@@ -6,7 +6,7 @@ import { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
-import type { ExamPlanRequest, ExamPlanResponse } from "@/types/domain";
+import type { ExamPlanRequest } from "@/types/domain";
 
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
