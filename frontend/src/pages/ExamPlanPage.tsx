@@ -8,12 +8,6 @@ import LoadingOverlay from "@/components/LoadingOverlay";
 
 import type { ExamPlanRequest, ExamPlanResponse } from "@/types/domain";
 
-// ❌ INTENTIONAL TYPE ERROR FOR TESTING
-const testPayload: ExamPlanRequest = {
-  foo: "bar", // <-- this field does NOT exist
-};
-
-
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
