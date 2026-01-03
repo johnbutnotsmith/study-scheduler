@@ -1,24 +1,9 @@
+// src/components/WeeklyTimeline.tsx
+
+import { WeeklyPlan } from "../types/domain";
+
 interface WeeklyTimelineProps {
-  plan: {
-    week_start: string;
-    days: Array<{
-      date: string;
-      weekday: string;
-      total_minutes: number;
-      blocks: Array<{
-        type: string;
-        minutes: number;
-        start: string;
-        end: string;
-        subjects: Array<{
-          id: string | null;
-          name: string;
-          minutes: number;
-          topic: { name: string; id: string | null };
-        }>;
-      }>;
-    }>;
-  };
+  plan: WeeklyPlan;
 }
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -64,11 +49,11 @@ export default function WeeklyTimeline({ plan }: WeeklyTimelineProps) {
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                   <span className="font-semibold text-gray-700">
-                    {block.start} → {block.end}
+                    Study block
                   </span>
 
                   <span className="text-sm text-gray-500">
-                    {block.minutes} min • {block.type}
+                    {block.minutes} min
                   </span>
                 </div>
 
@@ -81,7 +66,7 @@ export default function WeeklyTimeline({ plan }: WeeklyTimelineProps) {
                       )}`}
                     >
                       <span className="font-medium">
-                        {subj.name} — {subj.topic?.name}
+                        {subj.name} — {subj.topic.name}
                       </span>
 
                       <span className="text-gray-700 font-semibold sm:mt-0 mt-1">

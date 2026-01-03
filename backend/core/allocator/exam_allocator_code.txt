@@ -42,6 +42,33 @@ Input schema (exam mode):
         "end_date": "2026-01-26"
     }
 }
+
+Output schema (public API, aligned with frontend ExamPlan):
+
+{
+    "days": [
+        {
+            "date": "2025-12-29",
+            "weekday": "Monday",
+            "total_minutes": 180,
+            "blocks": [
+                {
+                    "minutes": 90,
+                    "subject": {
+                        "id": "chem_1",
+                        "name": "Chemistry",
+                        "minutes": 90,
+                        "topic": { ... },
+                        "difficulty": 4
+                    }
+                }
+            ]
+        }
+    ]
+}
+
+Internally, fairness and cognitive_load operate on blocks with a
+`subjects: [...]` list; we convert to `subject: {...}` at the very end.
 """
 
 from __future__ import annotations
@@ -49,7 +76,7 @@ from uuid import uuid4
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from .cognitive_load import validate_day_plan
 from .fairness import adjust_for_fairness
@@ -57,6 +84,7 @@ from ..engine.topic_rotation import pick_next_topic
 
 
 # ---------- Data structures ----------
+
 
 @dataclass
 class ExamSubject:
@@ -70,7 +98,7 @@ class ExamSubject:
             "difficulty": 4,
             "confidence": 1,
             "exam_date": "2026-01-26",
-            "topics": [...]
+            "topics": [...],
         }
     """
     id: str
@@ -104,6 +132,7 @@ DEFAULT_SETTINGS = AllocatorSettings()
 
 # ---------- Public API ----------
 
+
 def generate_exam_plan(
     subjects: List[Dict[str, Any]],
     availability: Dict[str, Any],
@@ -115,26 +144,25 @@ def generate_exam_plan(
         subjects: list of subject dicts (unified exam-mode subjects).
         availability: unified availability dict.
 
-    Returns:
+    Returns (public shape, consumed by frontend ExamTimeline):
         {
             "days": [
                 {
-                    "date": "2025-12-29",
-                    "total_minutes": 180,
+                    "date": "YYYY-MM-DD",
+                    "weekday": "Monday",
+                    "total_minutes": int,
                     "blocks": [
                         {
-                            "minutes": 90,
-                            "subjects": [
-                                {
-                                    "id": "chem_1",
-                                    "name": "Chemistry",
-                                    "minutes": 90,
-                                    "topic": {...},
-                                    "difficulty": 4
-                                }
-                            ]
+                            "minutes": int,
+                            "subject": {
+                                "id": str,
+                                "name": str,
+                                "minutes": int,
+                                "topic": {...},
+                                "difficulty": int,
+                            },
                         }
-                    ]
+                    ],
                 }
             ]
         }
@@ -155,23 +183,55 @@ def generate_exam_plan(
     weights = _compute_exam_weights(exams_model, availability_model, settings)
     minutes_per_exam = _allocate_minutes_per_exam(calendar_days, weights)
 
+    # Internal plan uses "subjects": [...], for compatibility with
+    # fairness and cognitive_load utilities.
     raw_plan = _distribute_minutes_into_days(
         calendar_days,
         exams_model,
-        minutes_per_exam
+        minutes_per_exam,
     )
 
     fair_plan = adjust_for_fairness(raw_plan)
 
-    final_days = []
+    validated_days: List[Dict[str, Any]] = []
     for day in fair_plan.get("days", []):
         validated = validate_day_plan(day)
-        final_days.append(validated)
+        validated_days.append(validated)
 
-    return {"days": final_days}
+    # Convert internal shape (blocks with "subjects": [...]) to public
+    # shape (blocks with "subject": {...}) for exam mode.
+    public_days: List[Dict[str, Any]] = []
+    for day in validated_days:
+        blocks_out: List[Dict[str, Any]] = []
+        for block in day.get("blocks", []):
+            subjects_list = block.get("subjects", [])
+            subject_obj = subjects_list[0] if subjects_list else None
+
+            new_block = {
+                "minutes": block.get("minutes", 0),
+            }
+            # Only include a subject if present; exam mode uses one subject per block.
+            if subject_obj is not None:
+                new_block["subject"] = subject_obj
+
+            blocks_out.append(new_block)
+
+        public_days.append(
+            {
+                "date": day["date"] if isinstance(day["date"], str) else day["date"].isoformat(),
+                "weekday": day.get("weekday") or datetime.fromisoformat(
+                    day["date"] if isinstance(day["date"], str) else day["date"].isoformat()
+                ).strftime("%A"),
+                "total_minutes": day.get("total_minutes", 0),
+                "blocks": blocks_out,
+            }
+        )
+
+    return {"days": public_days}
 
 
 # ---------- Parsing ----------
+
 
 def _parse_subjects_as_exams(subjects: List[Dict[str, Any]]) -> List[ExamSubject]:
     parsed: List[ExamSubject] = []
@@ -188,12 +248,14 @@ def _parse_subjects_as_exams(subjects: List[Dict[str, Any]]) -> List[ExamSubject
         topics = []
         for t in raw_topics:
             topic_id = t.get("id") or uuid4().hex
-            topics.append({
-                "id": str(topic_id),
-                "name": t["name"],
-                "priority": int(t["priority"]),
-                "familiarity": int(t["familiarity"]),
-            })
+            topics.append(
+                {
+                    "id": str(topic_id),
+                    "name": t["name"],
+                    "priority": int(t["priority"]),
+                    "familiarity": int(t["familiarity"]),
+                }
+            )
 
         # Build the ExamSubject dataclass
         parsed.append(
@@ -208,6 +270,7 @@ def _parse_subjects_as_exams(subjects: List[Dict[str, Any]]) -> List[ExamSubject
         )
 
     return parsed
+
 
 def _parse_availability(data: Dict[str, Any]) -> Availability:
     start = _parse_date(data["start_date"])
@@ -229,6 +292,7 @@ def _parse_date(value: str) -> date:
 
 
 # ---------- Calendar ----------
+
 
 def _build_calendar_days(avail: Availability) -> List[Dict[str, Any]]:
     """
@@ -265,10 +329,11 @@ def _build_calendar_days(avail: Availability) -> List[Dict[str, Any]]:
 
 # ---------- Weighting ----------
 
+
 def _compute_exam_weights(
     exams: List[ExamSubject],
     avail: Availability,
-    settings: AllocatorSettings
+    settings: AllocatorSettings,
 ) -> Dict[str, float]:
     """
     Compute a weight for each exam based on:
@@ -322,21 +387,25 @@ def _allocate_minutes_per_exam(
 
 # ---------- Distribution ----------
 
+
 def _distribute_minutes_into_days(
     calendar_days: List[Dict[str, Any]],
     exams: List[ExamSubject],
-    minutes_per_exam: Dict[str, int]
+    minutes_per_exam: Dict[str, int],
 ) -> Dict[str, Any]:
     """
     Distribute each exam's allocated minutes into daily blocks,
     respecting daily availability and exam urgency.
 
-    Produces the unified plan structure:
+    Produces an internal plan structure where blocks contain
+    `subjects: [...]` to stay compatible with fairness/cognitive_load:
+
         {
             "days": [
                 {
-                    "date": "YYYY-MM-DD",
-                    "total_minutes": int,
+                    "date": date,
+                    "weekday": "Monday",
+                    "total_minutes": int,   # computed later
                     "blocks": [
                         {
                             "minutes": int,
@@ -354,6 +423,9 @@ def _distribute_minutes_into_days(
                 }
             ]
         }
+
+    The public API shape (with `subject: {...}`) is produced in
+    `generate_exam_plan` after fairness and validation.
     """
     # Sort exams by exam_date (nearest first)
     exams_sorted = sorted(exams, key=lambda e: e.exam_date)
@@ -374,7 +446,7 @@ def _distribute_minutes_into_days(
         # Exams sorted by urgency relative to this day
         exams_by_urgency = sorted(
             exams_sorted,
-            key=lambda e: max((e.exam_date - day_date).days, 0)
+            key=lambda e: max((e.exam_date - day_date).days, 0),
         )
 
         day_blocks: List[Dict[str, Any]] = []
@@ -392,7 +464,9 @@ def _distribute_minutes_into_days(
                 if remaining.get(exam.id, 0) <= 0:
                     continue
 
-                block_minutes = _decide_block_length(exam, remaining[exam.id], available)
+                block_minutes = _decide_block_length(
+                    exam, remaining[exam.id], available
+                )
                 if block_minutes <= 0:
                     continue
 
@@ -401,7 +475,7 @@ def _distribute_minutes_into_days(
                     subject_id=exam.id,       # use exam id as subject key in state
                     topics=exam.topics,
                     state=topic_state,
-                    current_date=day_date
+                    current_date=day_date,
                 )
 
                 block = {
@@ -418,7 +492,9 @@ def _distribute_minutes_into_days(
                 }
                 day_blocks.append(block)
 
-                remaining[exam.id] = max(remaining[exam.id] - block_minutes, 0)
+                remaining[exam.id] = max(
+                    remaining[exam.id] - block_minutes, 0
+                )
                 available -= block_minutes
                 progress_made = True
 
@@ -432,7 +508,8 @@ def _distribute_minutes_into_days(
         if day_blocks:
             days_output.append(
                 {
-                    "date": day_date.isoformat(),
+                    "date": day_date,
+                    "weekday": day["weekday"],
                     "total_minutes": sum(
                         sum(s["minutes"] for s in block["subjects"])
                         for block in day_blocks
@@ -447,7 +524,7 @@ def _distribute_minutes_into_days(
 def _decide_block_length(
     exam: ExamSubject,
     remaining_for_exam: int,
-    remaining_for_day: int
+    remaining_for_day: int,
 ) -> int:
     """
     Decide a single block length for this exam on this day

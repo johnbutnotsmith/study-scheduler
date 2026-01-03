@@ -1,13 +1,15 @@
 // src/components/WeeklyPlanForm.tsx
 
 import { useState } from "react";
-import AvailabilityInput, {
-  type AvailabilityValue,
-} from "./AvailabilityInput";
-import SubjectList, {
-  type SubjectInput,
-} from "./SubjectList";
-import type { WeeklyPlanRequest } from "../api/types";
+import AvailabilityInput, { type AvailabilityValue } from "./AvailabilityInput";
+import SubjectList, { type SubjectInput } from "./SubjectList";
+
+import {
+  WeeklyPlanRequest,
+  WeeklySubject,
+  WeeklyAvailability,
+  Weekday,
+} from "../types/domain";
 
 interface WeeklyPlanFormProps {
   onGenerate: (payload: WeeklyPlanRequest) => void;
@@ -68,14 +70,11 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       ],
     };
 
-    // PREPEND behavior
-    setSubjects((prev) => [newSubject, ...prev]);
+    setSubjects((prev) => [newSubject, ...prev]); // PREPEND
   }
 
   function updateSubject(index: number, updated: SubjectInput) {
-    setSubjects((prev) =>
-      prev.map((s, i) => (i === index ? updated : s))
-    );
+    setSubjects((prev) => prev.map((s, i) => (i === index ? updated : s)));
   }
 
   function removeSubject(index: number) {
@@ -131,18 +130,37 @@ export function WeeklyPlanForm({ onGenerate, loading }: WeeklyPlanFormProps) {
       return;
     }
 
+    if (!weeklyHours || weeklyHours <= 0) {
+      alert("Please enter a valid number of weekly hours.");
+      return;
+    }
+
     const start = availability.start_date || todayISO();
     const end = computeWeeklyEndDate(start);
 
-    const normalizedAvailability = {
-      ...availability,
+    const normalizedAvailability: WeeklyAvailability = {
+      minutes_per_weekday:
+        availability.minutes_per_weekday as Record<Weekday, number>,
       start_date: start,
-      end_date: end,
+      end_date: end, // optional in type, but FE sends it
       rest_dates: availability.rest_dates ?? [],
     };
 
     const payload: WeeklyPlanRequest = {
-      subjects,
+      subjects: subjects.map(
+        (s): WeeklySubject => ({
+          id: s.id, // optional; backend generates if missing
+          name: s.name,
+          difficulty: s.difficulty,
+          confidence: s.confidence,
+          topics: s.topics.map((t) => ({
+            id: t.id,
+            name: t.name,
+            priority: t.priority,
+            familiarity: t.familiarity,
+          })),
+        })
+      ),
       weekly_hours: weeklyHours,
       availability: normalizedAvailability,
     };

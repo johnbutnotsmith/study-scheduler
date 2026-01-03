@@ -1,14 +1,8 @@
 // src/components/AvailabilityInput.tsx
 
-export type Weekday =
-  | "Monday"
-  | "Tuesday"
-  | "Wednesday"
-  | "Thursday"
-  | "Friday"
-  | "Saturday"
-  | "Sunday";
+import { Weekday } from "../types/domain";
 
+// UI-state shape (not the canonical domain type)
 export interface AvailabilityValue {
   minutes_per_weekday: Record<Weekday, number>;
   start_date?: string;

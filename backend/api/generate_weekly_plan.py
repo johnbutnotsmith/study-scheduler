@@ -1,53 +1,73 @@
 from datetime import date
-from typing import Dict, Any, List
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
-from .schemas import WeeklyPlanResponse
+from .schemas import WeeklyPlanRequest, WeeklyPlanResponse
 from core.allocator.weekly_allocator import generate_weekly_plan
 
 router = APIRouter(prefix="/weekly", tags=["weekly"])
 
 
-# -------------------------------
-# Request model for unified schema
-# -------------------------------
-class WeeklyPlanRequest(BaseModel):
-    subjects: List[Dict[str, Any]]
-    weekly_hours: float
-    availability: Dict[str, Any]
-
-
-# -------------------------------
-# Endpoint
-# -------------------------------
 @router.post("/generate", response_model=WeeklyPlanResponse)
 def generate_weekly_plan_endpoint(payload: WeeklyPlanRequest) -> WeeklyPlanResponse:
     """
     Unified weekly-mode endpoint.
-    Accepts:
+
+    Accepts (canonical shape):
         {
-            "subjects": [...],
+            "subjects": [
+                {
+                    "id": Optional[str],
+                    "name": str,
+                    "difficulty": int (1-5),
+                    "confidence": int (1-5),
+                    "topics": [
+                        {
+                            "id": Optional[str],
+                            "name": str,
+                            "priority": int (1-5),
+                            "familiarity": int (1-5)
+                        }
+                    ]
+                }
+            ],
             "weekly_hours": float,
-            "availability": {...}
+            "availability": {
+                "minutes_per_weekday": { "Monday": int, ... },
+                "rest_dates": [ "YYYY-MM-DD", ... ],
+                "start_date": "YYYY-MM-DD",
+                "end_date": Optional["YYYY-MM-DD"]   # accepted but not required
+            }
         }
+
+    Notes:
+    - Subject/topic IDs are optional; allocator generates them if missing.
+    - weekly_hours must be > 0.
+    - start_date defaults to today if missing.
+    - end_date is optional in weekly mode (frontend sends it; backend accepts it).
     """
 
+    # Basic validation
     if not payload.subjects:
-        raise HTTPException(400, "At least one subject is required.")
+        raise HTTPException(status_code=400, detail="At least one subject is required.")
 
     if payload.weekly_hours <= 0:
-        raise HTTPException(400, "weekly_hours must be > 0.")
+        raise HTTPException(status_code=400, detail="weekly_hours must be > 0.")
 
-    if "start_date" not in payload.availability:
-        payload.availability["start_date"] = date.today().isoformat()
+    # Normalize start_date
+    if not payload.availability.start_date:
+        payload.availability.start_date = date.today().isoformat()
 
-    # Call allocator
+    # Delegate to allocator.
+    # Allocator handles:
+    # - ID generation for subjects/topics
+    # - Weekly minutes distribution
+    # - Cognitive load rules
+    # - Fairness adjustments
     plan_dict = generate_weekly_plan(
-        subjects=payload.subjects,
+        subjects=[s.dict() for s in payload.subjects],
         weekly_hours=payload.weekly_hours,
-        availability=payload.availability,
+        availability=payload.availability.dict(),
     )
 
     return WeeklyPlanResponse(plan=plan_dict)

@@ -1,10 +1,17 @@
-import type {
+// frontend/src/api/client.ts
+
+import {
   ExamPlanRequest,
   ExamPlanResponse,
   WeeklyPlanRequest,
   WeeklyPlanResponse,
-  ApiResult,
-} from "./types";
+} from "../types/domain";
+
+export interface ApiResult<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
 
 const BASE_URL = "https://study-scheduler-mtqq.onrender.com";
 
@@ -16,6 +23,7 @@ async function request<T>(path: string, payload: unknown): Promise<ApiResult<T>>
       body: JSON.stringify(payload),
     });
 
+    // Backend always returns JSON (either { plan: ... } or { detail: ... })
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
@@ -25,7 +33,7 @@ async function request<T>(path: string, payload: unknown): Promise<ApiResult<T>>
       };
     }
 
-    return { ok: true, data };
+    return { ok: true, data: data as T };
   } catch (err: any) {
     return {
       ok: false,

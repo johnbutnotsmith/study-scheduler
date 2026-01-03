@@ -1,14 +1,16 @@
 // src/components/ExamPlanForm.tsx
 
 import { useState } from "react";
-import AvailabilityInput, {
-  type AvailabilityValue,
-} from "./AvailabilityInput";
+import AvailabilityInput, { type AvailabilityValue } from "./AvailabilityInput";
 import ExamDateInput from "./ExamDateInput";
-import SubjectList, {
-  type SubjectInput,
-} from "./SubjectList";
-import type { ExamPlanRequest } from "../api/types";
+import SubjectList, { type SubjectInput } from "./SubjectList";
+
+import {
+  ExamPlanRequest,
+  ExamSubject,
+  ExamAvailability,
+  Weekday,
+} from "../types/domain";
 
 interface ExamPlanFormProps {
   onGenerate: (payload: ExamPlanRequest) => void;
@@ -69,14 +71,11 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       ],
     };
 
-    // PREPEND behavior
-    setSubjects((prev) => [newSubject, ...prev]);
+    setSubjects((prev) => [newSubject, ...prev]); // PREPEND
   }
 
   function updateSubject(index: number, updated: SubjectInput) {
-    setSubjects((prev) =>
-      prev.map((s, i) => (i === index ? updated : s))
-    );
+    setSubjects((prev) => prev.map((s, i) => (i === index ? updated : s)));
   }
 
   function removeSubject(index: number) {
@@ -138,23 +137,32 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
     }
 
     const start = availability.start_date || todayISO();
-    const lastStudyDay = dayBefore(examDate); // correct rule
+    const lastStudyDay = dayBefore(examDate);
 
-    const normalizedAvailability = {
-      ...availability,
+    const normalizedAvailability: ExamAvailability = {
+      minutes_per_weekday:
+        availability.minutes_per_weekday as Record<Weekday, number>,
       start_date: start,
       end_date: lastStudyDay,
       rest_dates: availability.rest_dates ?? [],
     };
 
     const payload: ExamPlanRequest = {
-      subjects: subjects.map((s) => ({
-        name: s.name,
-        exam_date: examDate, // actual exam day
-        difficulty: s.difficulty,
-        confidence: s.confidence,
-        topics: s.topics,
-      })),
+      subjects: subjects.map(
+        (s): ExamSubject => ({
+          id: s.id, // optional; backend will generate if missing
+          name: s.name,
+          exam_date: examDate,
+          difficulty: s.difficulty,
+          confidence: s.confidence,
+          topics: s.topics.map((t) => ({
+            id: t.id,
+            name: t.name,
+            priority: t.priority,
+            familiarity: t.familiarity,
+          })),
+        })
+      ),
       availability: normalizedAvailability,
     };
 
@@ -180,10 +188,7 @@ export function ExamPlanForm({ onGenerate, loading }: ExamPlanFormProps) {
       />
 
       {/* Exam date */}
-      <ExamDateInput
-        value={examDate}
-        onChange={(date) => setExamDate(date)}
-      />
+      <ExamDateInput value={examDate} onChange={setExamDate} />
 
       {/* Subjects */}
       <SubjectList

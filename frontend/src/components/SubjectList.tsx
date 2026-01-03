@@ -1,14 +1,14 @@
 // src/components/SubjectList.tsx
 
 export interface TopicInput {
-  id?: string | null;
+  id?: string;
   name: string;
   priority: number;
   familiarity: number;
 }
 
 export interface SubjectInput {
-  id?: string | null;
+  id?: string;
   name: string;
   difficulty: number;
   confidence: number;

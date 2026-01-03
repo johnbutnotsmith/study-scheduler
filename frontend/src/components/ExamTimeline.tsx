@@ -1,20 +1,9 @@
+// src/components/ExamTimeline.tsx
+
+import { ExamPlan } from "../types/domain";
+
 interface ExamTimelineProps {
-  plan: {
-    days: Array<{
-      date: string;
-      total_minutes: number;
-      blocks: Array<{
-        minutes: number;
-        subjects: Array<{
-          id: string | null;
-          name: string;
-          minutes: number;
-          topic: { id: string | null; name: string };
-          difficulty: number;
-        }>;
-      }>;
-    }>;
-  };
+  plan: ExamPlan;
 }
 
 const SUBJECT_COLORS: Record<string, string> = {
@@ -49,41 +38,40 @@ export default function ExamTimeline({ plan }: ExamTimelineProps) {
           )}
 
           <div className="space-y-4">
-            {day.blocks.map((block, idx) => (
-              <div
-                key={idx}
-                className="border-l-4 border-purple-500 pl-4 py-3 bg-gray-50 rounded"
-              >
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
-                  <span className="font-semibold text-gray-700">
-                    Flexible time
-                  </span>
+            {day.blocks.map((block, idx) => {
+              const subj = block.subject; // exam mode: single subject per block
 
-                  <span className="text-sm text-gray-500">
-                    {block.minutes} min
-                  </span>
+              return (
+                <div
+                  key={idx}
+                  className="border-l-4 border-purple-500 pl-4 py-3 bg-gray-50 rounded"
+                >
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                    <span className="font-semibold text-gray-700">
+                      {subj.name} — {subj.topic.name}
+                    </span>
+
+                    <span className="text-sm text-gray-500">
+                      {block.minutes} min
+                    </span>
+                  </div>
+
+                  <div
+                    className={`mt-3 flex flex-col sm:flex-row sm:justify-between sm:items-center border-l-4 p-2 rounded ${getColorClass(
+                      subj.name
+                    )}`}
+                  >
+                    <span className="font-medium">
+                      {subj.name} — {subj.topic.name}
+                    </span>
+
+                    <span className="text-gray-700 font-semibold sm:mt-0 mt-1">
+                      {subj.minutes} min
+                    </span>
+                  </div>
                 </div>
-
-                <ul className="mt-3 space-y-2">
-                  {block.subjects.map((subj, sidx) => (
-                    <li
-                      key={sidx}
-                      className={`flex flex-col sm:flex-row sm:justify-between sm:items-center border-l-4 p-2 rounded ${getColorClass(
-                        subj.name
-                      )}`}
-                    >
-                      <span className="font-medium">
-                        {subj.name} — {subj.topic?.name}
-                      </span>
-
-                      <span className="text-gray-700 font-semibold sm:mt-0 mt-1">
-                        {subj.minutes} min
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

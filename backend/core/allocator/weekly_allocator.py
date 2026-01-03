@@ -1,4 +1,5 @@
 # backend/core/allocator/weekly_allocator.py
+
 from __future__ import annotations
 from uuid import uuid4
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ from ..engine.topic_rotation import pick_next_topic
 class WeeklySubject:
     """
     Unified weekly subject model.
+    Matches frontend WeeklySubject and backend WeeklySubjectModel.
     """
     id: str
     name: str
@@ -29,6 +31,10 @@ class WeeklySubject:
 
 @dataclass
 class WeeklyAvailability:
+    """
+    Unified weekly availability model.
+    Matches WeeklyAvailabilityModel in schemas.py.
+    """
     minutes_per_weekday: Dict[str, int]
     rest_dates: List[date]
     start_date: date
@@ -74,6 +80,33 @@ def generate_weekly_plan(
 ) -> Dict[str, Any]:
     """
     Generate a weekly plan using the unified schema.
+
+    Returns public shape consumed by WeeklyTimeline:
+
+    {
+        "week_start": "YYYY-MM-DD",
+        "days": [
+            {
+                "date": "YYYY-MM-DD",
+                "weekday": "Monday",
+                "total_minutes": int,
+                "blocks": [
+                    {
+                        "minutes": int,
+                        "subjects": [
+                            {
+                                "id": str,
+                                "name": str,
+                                "minutes": int,
+                                "topic": {...},
+                                "difficulty": int
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
     """
     subject_models = _parse_subjects(subjects)
     avail_model = _parse_availability(availability)
@@ -106,7 +139,7 @@ def generate_weekly_plan(
 
     return {
         "week_start": fair_week_plan.get("week_start"),
-        "days": validated_days
+        "days": validated_days,
     }
 
 
@@ -118,34 +151,32 @@ def _parse_subjects(subjects: List[Dict[str, Any]]) -> List[WeeklySubject]:
     out: List[WeeklySubject] = []
 
     for s in subjects:
-        # Generate unique subject ID if missing
         subject_id = s.get("id") or uuid4().hex
 
-        # Parse topics with safe unique IDs
         raw_topics = s.get("topics", []) or []
         topics = []
         for t in raw_topics:
             topic_id = t.get("id") or uuid4().hex
-            topics.append({
-                "id": str(topic_id),
-                "name": t["name"],
-                "priority": int(t["priority"]),
-                "familiarity": int(t["familiarity"]),
-            })
+            topics.append(
+                {
+                    "id": str(topic_id),
+                    "name": t["name"],
+                    "priority": int(t["priority"]),
+                    "familiarity": int(t["familiarity"]),
+                }
+            )
 
-        # Build WeeklySubject dataclass
         out.append(
             WeeklySubject(
                 id=str(subject_id),
                 name=str(s["name"]),
                 difficulty=int(s["difficulty"]),
                 confidence=int(s["confidence"]),
-                topics=topics
+                topics=topics,
             )
         )
 
     return out
-
 
 
 def _parse_availability(data: Dict[str, Any]) -> WeeklyAvailability:
@@ -155,7 +186,7 @@ def _parse_availability(data: Dict[str, Any]) -> WeeklyAvailability:
     return WeeklyAvailability(
         minutes_per_weekday=mpw,
         rest_dates=rest_dates,
-        start_date=start_date
+        start_date=start_date,
     )
 
 
@@ -173,8 +204,8 @@ def _compute_subject_weights(subjects: List[WeeklySubject], settings: WeeklySett
         diff_score = s.difficulty / 5.0
         confidence_need = (6 - s.confidence) / 5.0
         weight = (
-            settings.difficulty_weight * diff_score +
-            settings.confidence_weight * confidence_need
+            settings.difficulty_weight * diff_score
+            + settings.confidence_weight * confidence_need
         )
         weights[s.id] = max(weight, 0.0001)
     return weights
@@ -213,7 +244,7 @@ def _distribute_minutes_by_weight(weights: Dict[str, float], total_minutes: int)
 def _expand_into_sessions(
     subjects: List[WeeklySubject],
     minutes_per_subject: Dict[str, int],
-    settings: WeeklySettings
+    settings: WeeklySettings,
 ) -> Dict[str, List[int]]:
 
     sessions: Dict[str, List[int]] = {}
@@ -278,7 +309,7 @@ def _build_week_days(avail: WeeklyAvailability) -> List[Dict[str, Any]]:
                 "date": d,
                 "weekday": weekday,
                 "available_minutes": minutes,
-                "blocks": []
+                "blocks": [],
             }
         )
     return days
@@ -292,7 +323,7 @@ def _fill_week_blocks(
     week_days: List[Dict[str, Any]],
     subjects: List[WeeklySubject],
     sessions: Dict[str, List[int]],
-    settings: WeeklySettings
+    settings: WeeklySettings,
 ) -> Dict[str, Any]:
 
     subject_map: Dict[str, WeeklySubject] = {s.id: s for s in subjects}
@@ -340,7 +371,9 @@ def _fill_week_blocks(
                 session_len = sess_list[idx]
 
                 if session_len > block_capacity:
-                    if block_capacity >= settings.light_min and session_len >= (settings.light_min + 10):
+                    if block_capacity >= settings.light_min and session_len >= (
+                        settings.light_min + 10
+                    ):
                         allocated = block_capacity
                         sessions[sid][idx] = session_len - allocated
                         session_len = allocated
@@ -353,7 +386,7 @@ def _fill_week_blocks(
                     subject_id=sid,
                     topics=subj_spec.topics,
                     state=topic_state,
-                    current_date=day["date"]
+                    current_date=day["date"],
                 )
 
                 block_subjects.append(
@@ -362,7 +395,7 @@ def _fill_week_blocks(
                         "name": subj_spec.name,
                         "minutes": session_len,
                         "topic": topic,
-                        "difficulty": subj_spec.difficulty
+                        "difficulty": subj_spec.difficulty,
                     }
                 )
 
@@ -382,10 +415,10 @@ def _fill_week_blocks(
             block_minutes = sum(s["minutes"] for s in block_subjects)
             block_raw = {
                 "minutes": block_minutes,
-                "subjects": block_subjects
+                "subjects": block_subjects,
             }
 
-            # FIX: do NOT pass WeeklySettings into validate_block
+            # FIX: validate_block should NOT receive settings
             block_valid = validate_block(block_raw)
             blocks.append(block_valid)
 
@@ -403,8 +436,7 @@ def _fill_week_blocks(
 
         day["blocks"] = blocks
         day["total_minutes"] = sum(
-            sum(s["minutes"] for s in block["subjects"])
-            for block in blocks
+            sum(s["minutes"] for s in block["subjects"]) for block in blocks
         )
 
     week_start = week_days[0]["date"].isoformat() if week_days else None
