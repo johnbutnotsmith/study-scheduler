@@ -1,6 +1,6 @@
 // src/components/ExamTimeline.tsx
 
-import { ExamPlan } from "../types/domain";
+import type { ExamPlan } from "../types/domain";
 
 interface ExamTimelineProps {
   plan: ExamPlan;

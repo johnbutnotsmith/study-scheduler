@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import type { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "@/pages/LandingPage";
 import WeeklyPlanPage from "@/pages/WeeklyPlanPage";
 import ExamPlanPage from "@/pages/ExamPlanPage";

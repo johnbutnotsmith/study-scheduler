@@ -1,6 +1,6 @@
 // src/components/AvailabilityInput.tsx
 
-import { Weekday } from "../types/domain";
+import type { Weekday } from "../types/domain";
 
 // UI-state shape (not the canonical domain type)
 export interface AvailabilityValue {

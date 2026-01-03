@@ -5,7 +5,7 @@ import AvailabilityInput, { type AvailabilityValue } from "./AvailabilityInput";
 import ExamDateInput from "./ExamDateInput";
 import SubjectList, { type SubjectInput } from "./SubjectList";
 
-import {
+import type {
   ExamPlanRequest,
   ExamSubject,
   ExamAvailability,

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import PlanPageLayout from "@/components/PlanPageLayout";
-import { ExamPlanForm } from "@/components/ExamPlanForm";
-import { generateExamPlan } from "@/api/client";
+import type { ExamPlanForm } from "@/components/ExamPlanForm";
+import type { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import type { ExamPlanRequest } from "@/api/types";
+
+import type { ExamPlanRequest, ExamPlanResponse } from "@/types/domain";
 
 export default function ExamPlanPage() {
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export default function ExamPlanPage() {
       try {
         const result = await generateExamPlan(payload);
 
-        if (!result.ok) {
+        if (!result.ok || !result.data) {
           throw new Error(result.error || "Failed to generate exam plan.");
         }
 

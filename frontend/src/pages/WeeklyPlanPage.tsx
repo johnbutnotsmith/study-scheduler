@@ -1,8 +1,8 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import PlanPageLayout from "@/components/PlanPageLayout";
-import { WeeklyPlanForm } from "@/components/WeeklyPlanForm";
-import { generateWeeklyPlan } from "@/api/client";
+import type { WeeklyPlanForm } from "@/components/WeeklyPlanForm";
+import type { generateWeeklyPlan } from "@/api/client";
 import WeeklyTimeline from "@/components/WeeklyTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
 

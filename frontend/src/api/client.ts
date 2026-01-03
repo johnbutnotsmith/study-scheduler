@@ -1,6 +1,6 @@
 // frontend/src/api/client.ts
 
-import {
+import type {
   ExamPlanRequest,
   ExamPlanResponse,
   WeeklyPlanRequest,

@@ -4,7 +4,7 @@ import { useState } from "react";
 import AvailabilityInput, { type AvailabilityValue } from "./AvailabilityInput";
 import SubjectList, { type SubjectInput } from "./SubjectList";
 
-import {
+import type {
   WeeklyPlanRequest,
   WeeklySubject,
   WeeklyAvailability,

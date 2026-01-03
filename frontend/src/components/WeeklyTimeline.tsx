@@ -1,6 +1,6 @@
 // src/components/WeeklyTimeline.tsx
 
-import { WeeklyPlan } from "../types/domain";
+import type { WeeklyPlan } from "../types/domain";
 
 interface WeeklyTimelineProps {
   plan: WeeklyPlan;
