@@ -1,5 +1,5 @@
 import AppLayout from "@/components/AppLayout";
-import type { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function LandingPage() {
   return (

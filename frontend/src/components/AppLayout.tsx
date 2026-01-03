@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import type { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();

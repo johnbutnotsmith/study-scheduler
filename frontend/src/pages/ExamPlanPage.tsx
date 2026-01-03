@@ -1,8 +1,8 @@
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import PlanPageLayout from "@/components/PlanPageLayout";
-import type { ExamPlanForm } from "@/components/ExamPlanForm";
-import type { generateExamPlan } from "@/api/client";
+import { ExamPlanForm } from "@/components/ExamPlanForm";
+import { generateExamPlan } from "@/api/client";
 import ExamTimeline from "@/components/ExamTimeline";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
